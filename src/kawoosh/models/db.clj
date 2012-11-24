@@ -62,7 +62,7 @@ LANGUAGE plpgsql")
                       [:network :serial "NOT NULL"
                       "REFERENCES networks(id)"
                       "ON DELETE CASCADE"]
-                      [:time :timestamp "NOT NULL"] ; XXX default now()
+                      [:time :timestamp "NOT NULL" "DEFAULT CURRENT_DATE"]
                       [:source :text "NOT NULL"]
                       [:command :text "NOT NULL"]
                       [:target :text "NOT NULL"]
