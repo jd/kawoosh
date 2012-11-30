@@ -23,6 +23,13 @@ CREATE TABLE network_connections (
        UNIQUE (network, username)
 );
 
+-- XXX Notify worker to exit() on DELETE
+CREATE TABLE workers (
+       id serial PRIMARY KEY,
+       network_connection serial NOT NULL UNIQUE REFERENCES network_connections(id) ON DELETE CASCADE,
+       ping timestamp NOT NULL DEFAULT CURRENT_DATE
+);
+
 CREATE TABLE servers (
 	id serial PRIMARY KEY,
 	network serial NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
