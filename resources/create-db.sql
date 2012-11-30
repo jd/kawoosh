@@ -10,8 +10,7 @@ CREATE TABLE users (
 
 CREATE TABLE networks (
        id serial PRIMARY KEY,
-       username text REFERENCES users(name) ON DELETE CASCADE,
-       name text NOT NULL UNIQUE
+       name text NOT NULL UNIQUE CHECK (name SIMILAR TO '[a-zA-Z0-9.\_\-\[\]\{\}]+')
 );
 
 -- XXX Check on INSERT/UPDATE that network.username == NULL or network.username == username
@@ -38,7 +37,6 @@ CREATE TABLE channels (
 	password text,
 	UNIQUE (network_connection, name)
 );
-
 
 CREATE TABLE logs (
 	id serial PRIMARY KEY,
