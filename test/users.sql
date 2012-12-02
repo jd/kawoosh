@@ -12,7 +12,7 @@ SELECT ok(count(*) = 1, 'Valid username count') FROM users;
 -- Invalid username check
 PREPARE insert_invalid_user_name AS INSERT INTO users (name) VALUES ('#invalid');
 SELECT throws_ok(
-        'insert_invalid_user_name',
+       'insert_invalid_user_name',
        23514,
        'new row for relation "users" violates check constraint "users_name_check"',
        'Invalid user name with a #'
