@@ -9,15 +9,14 @@ CREATE TABLE users (
 );
 
 CREATE TABLE networks (
-       id serial PRIMARY KEY,
-       name text NOT NULL UNIQUE CHECK (name SIMILAR TO '[a-zA-Z0-9.\_\-\[\]\{\}]+')
+       name text PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9.\_\-\[\]\{\}]+')
 );
 
 -- XXX Check on INSERT/UPDATE that network.username == NULL or network.username == username
 CREATE TABLE network_connections (
        id serial PRIMARY KEY,
        username text NOT NULL REFERENCES users(name) ON DELETE CASCADE,
-       network serial NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
+       network text NOT NULL REFERENCES networks(name) ON DELETE CASCADE,
        nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
        realname text,
        UNIQUE (network, username)
@@ -32,7 +31,7 @@ CREATE TABLE workers (
 
 CREATE TABLE servers (
 	id serial PRIMARY KEY,
-	network serial NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
+	network text NOT NULL REFERENCES networks(name) ON DELETE CASCADE,
 	address fqdn NOT NULL,
 	UNIQUE (network, address)
 );
