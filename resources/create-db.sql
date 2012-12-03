@@ -56,10 +56,10 @@ CREATE TABLE logs (
 
 
 -- Functions/triggers
---- Lower channels.name on insertion
+--- Lower and trim channels.name on insertion
 CREATE OR REPLACE FUNCTION lower_name() RETURNS trigger AS $lower_name$
 BEGIN
-  NEW.name := lower(NEW.name);
+  NEW.name := lower(trim(NEW.name));
   RETURN NEW;
 END;
 $lower_name$
