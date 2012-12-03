@@ -1,5 +1,5 @@
 -- Domains
-CREATE DOMAIN fqdn AS text CHECK (value ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$');
+-- CREATE DOMAIN fqdn AS text CHECK (value ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$');
 
 
 -- Tables
@@ -30,10 +30,8 @@ CREATE TABLE workers (
 );
 
 CREATE TABLE servers (
-	id serial PRIMARY KEY,
-	network text NOT NULL REFERENCES networks(name) ON DELETE CASCADE,
-	address fqdn NOT NULL,
-	UNIQUE (network, address)
+	address text PRIMARY KEY CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
+	network text NOT NULL REFERENCES networks(name) ON DELETE CASCADE
 );
 
 CREATE TABLE channels (
@@ -66,6 +64,17 @@ $lower_name$
 LANGUAGE plpgsql;
 
 CREATE TRIGGER lower_name BEFORE INSERT ON channels FOR EACH ROW EXECUTE PROCEDURE lower_name();
+
+--- Lower and trim server.address.name on insertion
+CREATE OR REPLACE FUNCTION lower_address() RETURNS trigger AS $lower_address$
+BEGIN
+  NEW.address := lower(trim(NEW.address));
+  RETURN NEW;
+END;
+$lower_address$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();
 
 --- Notify on new channels
 -- CREATE OR REPLACE FUNCTION channels_notify() AS $$
