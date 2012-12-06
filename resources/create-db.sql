@@ -19,14 +19,8 @@ CREATE TABLE network_connections (
        network text NOT NULL REFERENCES networks(name) ON DELETE CASCADE,
        nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
        realname text,
+       worker_ping timestamp,
        UNIQUE (network, username)
-);
-
--- XXX Notify worker to exit() on DELETE
-CREATE TABLE workers (
-       id serial PRIMARY KEY,
-       network_connection serial NOT NULL UNIQUE REFERENCES network_connections(id) ON DELETE CASCADE,
-       ping timestamp NOT NULL DEFAULT CURRENT_DATE
 );
 
 CREATE TABLE servers (
