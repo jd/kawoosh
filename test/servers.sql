@@ -2,19 +2,15 @@
 BEGIN;
 SELECT plan(6);
 
-DELETE FROM networks;
 DELETE FROM servers;
+DELETE FROM users;
 
--- Default data
-INSERT INTO networks (name) VALUES ('OFTC');
-INSERT INTO networks (name) VALUES ('Freenode');
-
--- Tests
-INSERT INTO servers (address, port, network) VALUES ('  IRC.oftc.net', 6666, 'OFTC');
+INSERT INTO users (name) VALUES ('jd');
+INSERT INTO servers (name, address, username, nickname) VALUES ('OFTC', '  IRC.oftc.net', 'jd', 'jd__');
 SELECT is(address, 'irc.oftc.net', 'Valid server address') FROM servers;
 SELECT ok(count(*) = 1, 'Valid server count') FROM servers;
 
-PREPARE insert_invalid_server_address AS INSERT INTO servers (address, network) VALUES ('invalid%.irc.net', 'OFTC');
+PREPARE insert_invalid_server_address AS INSERT INTO servers (name, address, username, nickname) VALUES ('IRC', 'invalid%.irc.net', 'jd__', 'jd');
 SELECT throws_ok(
        'insert_invalid_server_address',
        23514,
@@ -22,7 +18,7 @@ SELECT throws_ok(
        'Invalid server address with a %'
 );
 
-PREPARE insert_invalid_server_port AS INSERT INTO servers (address, port, network) VALUES ('invalid%.irc.net', 123234, 'OFTC');
+PREPARE insert_invalid_server_port AS INSERT INTO servers (name, address, port, username, nickname) VALUES ('IRC', 'invalid%.irc.net', 123234, 'jd', 'jd');
 SELECT throws_ok(
        'insert_invalid_server_port',
        23514,
@@ -30,20 +26,20 @@ SELECT throws_ok(
        'Invalid server port > 65535'
 );
 
-PREPARE insert_non_unique_server_address AS INSERT INTO servers (address, network) VALUES ('irc.OFTC.net', 'Freenode');
+PREPARE insert_invalid_username AS INSERT INTO servers (name, address, username, nickname) VALUES ('foobar', 'foobar.net', 'foobar', 'foobar');
 SELECT throws_ok(
-       'insert_non_unique_server_address',
-       23505,
-       'duplicate key value violates unique constraint "servers_pkey"',
-       'Non-unique server address'
+       'insert_invalid_username',
+       23503,
+       'insert or update on table "servers" violates foreign key constraint "servers_username_fkey"',
+       'Non-existent user name'
 );
 
-PREPARE insert_non_existent_server_network AS INSERT INTO servers (address, network) VALUES ('irc.dtc.net', 'DC');
+PREPARE insert_invalid_nickname AS INSERT INTO servers (name, address, username, nickname) VALUES ('OFTC', 'irc', 'jd', '#jdd');
 SELECT throws_ok(
-       'insert_non_existent_server_network',
-       23503,
-       'insert or update on table "servers" violates foreign key constraint "servers_network_fkey"',
-       'Non-existent network'
+       'insert_invalid_nickname',
+       23514,
+       'new row for relation "servers" violates check constraint "servers_nickname_check"',
+       'Invalid nickname'
 );
 
 -- Finish the tests and clean up.
