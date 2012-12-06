@@ -84,3 +84,5 @@ INSERT INTO servers VALUES ('orion', 8067, 'Naquadah');
 WITH net AS (
      INSERT INTO network_connections (username, network, nickname) VALUES ('jd', 'Naquadah', 'jdk') RETURNING id
 ) INSERT INTO channels (network_connection, name) SELECT id, '#test' FROM net;
+INSERT INTO channels (network_connection, name) SELECT id, '#test-bis' FROM network_connections WHERE username='jd' AND network='Naquadah';
+
