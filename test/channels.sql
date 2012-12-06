@@ -1,6 +1,9 @@
 BEGIN;
 SELECT plan(3);
 
+DELETE FROM networks;
+DELETE FROM users;
+
 INSERT INTO users (name) VALUES ('jd');
 INSERT INTO networks (name) VALUES ('OFTC');
 WITH network_connection_id AS (

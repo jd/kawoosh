@@ -31,6 +31,7 @@ CREATE TABLE workers (
 
 CREATE TABLE servers (
 	address text PRIMARY KEY CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
+	port integer DEFAULT 6667 CHECK (port > 0 AND port < 65536),
 	network text NOT NULL REFERENCES networks(name) ON DELETE CASCADE
 );
 
@@ -44,7 +45,7 @@ CREATE TABLE channels (
 
 CREATE TABLE logs (
 	id serial PRIMARY KEY,
-	network serial NOT NULL REFERENCES network_connections(id) ON DELETE CASCADE,
+	network_connection serial NOT NULL REFERENCES network_connections(id) ON DELETE CASCADE,
 	time timestamp NOT NULL DEFAULT CURRENT_DATE,
 	source text NOT NULL,
 	command text NOT NULL,
@@ -81,3 +82,11 @@ CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCE
 -- NOTIFY NEW
 
 -- CREATE TRIGGER channels_notify BEFORE INSERT ON channels FOR EACH STATEMENT EXECUTE PROCEDURE channels_notify();
+
+-- Basic data
+INSERT INTO users (name) VALUES ('jd');
+INSERT INTO networks VALUES ('Naquadah');
+INSERT INTO servers VALUES ('orion', 8067, 'Naquadah');
+WITH net AS (
+     INSERT INTO network_connections (username, network, nickname) VALUES ('jd', 'Naquadah', 'jdk') RETURNING id
+) INSERT INTO channels (network_connection, name) SELECT id, '#test' FROM net;

@@ -1,6 +1,6 @@
 -- Start transaction and plan the tests.
 BEGIN;
-SELECT plan(5);
+SELECT plan(6);
 
 DELETE FROM networks;
 DELETE FROM servers;
@@ -10,7 +10,7 @@ INSERT INTO networks (name) VALUES ('OFTC');
 INSERT INTO networks (name) VALUES ('Freenode');
 
 -- Tests
-INSERT INTO servers (address, network) VALUES ('  IRC.oftc.net', 'OFTC');
+INSERT INTO servers (address, port, network) VALUES ('  IRC.oftc.net', 6666, 'OFTC');
 SELECT is(address, 'irc.oftc.net', 'Valid server address') FROM servers;
 SELECT ok(count(*) = 1, 'Valid server count') FROM servers;
 
@@ -20,6 +20,14 @@ SELECT throws_ok(
        23514,
        'new row for relation "servers" violates check constraint "servers_address_check"',
        'Invalid server address with a %'
+);
+
+PREPARE insert_invalid_server_port AS INSERT INTO servers (address, port, network) VALUES ('invalid%.irc.net', 123234, 'OFTC');
+SELECT throws_ok(
+       'insert_invalid_server_port',
+       23514,
+       'new row for relation "servers" violates check constraint "servers_port_check"',
+       'Invalid server port > 65535'
 );
 
 PREPARE insert_non_unique_server_address AS INSERT INTO servers (address, network) VALUES ('irc.OFTC.net', 'Freenode');
