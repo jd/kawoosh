@@ -5,4 +5,3 @@ DROP TABLE workers;
 DROP TABLE network_connections;
 DROP TABLE networks;
 DROP TABLE users;
-DROP DOMAIN fqdn;
