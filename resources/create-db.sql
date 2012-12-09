@@ -16,7 +16,6 @@ CREATE TABLE servers (
        username text NOT NULL REFERENCES users(name) ON DELETE CASCADE,
        nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
        realname text,
-       worker_ping timestamp,
        UNIQUE (name, username)
 );
 
