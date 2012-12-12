@@ -62,10 +62,23 @@ LANGUAGE plpgsql;
 CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();
 
 --- Notify on new channels
--- CREATE OR REPLACE FUNCTION channels_notify() AS $$
--- NOTIFY NEW
+CREATE OR REPLACE FUNCTION channels_notify() RETURNS trigger AS $$
+BEGIN
+  IF (TG_OP = 'DELETE') THEN
+    PERFORM pg_notify('channel_' || OLD.server, '');
+  ELSIF (TG_OP = 'UPDATE') THEN
+    PERFORM pg_notify('channel_' || NEW.server, '');
+    IF (OLD.server != NEW.server) THEN
+      PERFORM pg_notify('channel_' || NEW.server, '');
+    END IF;
+  ELSIF (TG_OP = 'INSERT') THEN
+    PERFORM pg_notify('channel_' || NEW.server, '');
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
 
--- CREATE TRIGGER channels_notify BEFORE INSERT ON channels FOR EACH STATEMENT EXECUTE PROCEDURE channels_notify();
+CREATE TRIGGER channels_notify_insert AFTER INSERT OR UPDATE OR DELETE ON channels FOR EACH ROW EXECUTE PROCEDURE channels_notify();
 
 -- Basic data
 INSERT INTO users (name) VALUES ('jd');

@@ -1,10 +1,15 @@
 (require :cl-irc)
 (require :bordeaux-threads)
 (require :postmodern)
+(require :cl-postgres)
 (require :local-time)
 
 ;; MAIN
+
 (postmodern:connect-toplevel "kawoosh" "kawoosh" "kawoosh" "localhost")
+
+(defvar *database-irc*
+  (postmodern:connect "kawoosh" "kawoosh" "kawoosh" "localhost"))
 
 (defclass server ()
   ((id :col-type integer :reader server-id)
@@ -42,10 +47,15 @@
                        (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC") hook))))
 
 (defun server-join (server)
-  (dolist (channel (postmodern:select-dao 'channel (:= 'id (server-id server))))
+  (dolist (channel (postmodern:select-dao 'channel (:= 'server (server-id server))))
     (cl-irc:join (server-connection server)
                  (channel-name channel)
                  :password (channel-password channel))))
+
+(defun server-listen (server)
+  (postmodern:execute (concatenate 'string "LISTEN channel_" (write-to-string (server-id server))))
+  (loop while (cl-postgres:wait-for-notification postmodern:*database*)
+        do (server-join server)))
 
 (defun server-log (server msg)
   (postmodern:execute
@@ -57,7 +67,12 @@
    (car (cl-irc:arguments msg))
    (cadr (cl-irc:arguments msg))))
 
+
 (let ((server (car (postmodern:select-dao 'server "true LIMIT 1"))))
   (server-connect server)
   (server-join server)
-  (bordeaux-threads:make-thread (lambda () (cl-irc:read-message-loop (server-connection server)))))
+  (bordeaux-threads:make-thread (lambda ()
+                                  (let ((postmodern:*database* *database-irc*))
+                                    (cl-irc:read-message-loop (server-connection server))))
+                                :name "irc-read-message-loop")
+  (server-listen server))
