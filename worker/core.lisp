@@ -46,16 +46,23 @@
       (cl-irc:add-hook (server-connection server)
                        (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC") hook))))
 
-(defun server-join (server)
-  (dolist (channel (postmodern:select-dao 'channel (:= 'server (server-id server))))
-    (cl-irc:join (server-connection server)
-                 (channel-name channel)
-                 :password (channel-password channel))))
+(defun server-update-channels (server)
+  (let* ((wanted-channels (postmodern:select-dao 'channel (:= 'server (server-id server))))
+         (wanted-channels-name (mapcar #'channel-name wanted-channels)))
+    ;; PART channels not in the table anymore
+    (loop for channel-name being the hash-keys of (cl-irc:channels (server-connection server))
+          unless (find channel-name wanted-channels-name)
+          do (cl-irc:part (server-connection server) channel-name))
+    ;; JOIN new channels
+    (loop for channel in wanted-channels
+          do (cl-irc:join (server-connection server)
+                          (channel-name channel)
+                          :password (channel-password channel)))))
 
 (defun server-listen (server)
   (postmodern:execute (concatenate 'string "LISTEN channel_" (write-to-string (server-id server))))
   (loop while (cl-postgres:wait-for-notification postmodern:*database*)
-        do (server-join server)))
+        do (server-update-channels server)))
 
 (defun server-log (server msg)
   (postmodern:execute
@@ -70,7 +77,7 @@
 
 (let ((server (car (postmodern:select-dao 'server "true LIMIT 1"))))
   (server-connect server)
-  (server-join server)
+  (server-update-channels server)
   (bordeaux-threads:make-thread (lambda ()
                                   (let ((postmodern:*database* *database-irc*))
                                     (cl-irc:read-message-loop (server-connection server))))
