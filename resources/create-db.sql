@@ -1,7 +1,3 @@
--- Domains
--- CREATE DOMAIN fqdn AS text CHECK (value ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$');
-
-
 -- Tables
 CREATE TABLE users (
        name text NOT NULL PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
