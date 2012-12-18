@@ -9,6 +9,7 @@ CREATE TABLE servers (
        name text NOT NULL,
        address text NOT NULL CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
        port integer DEFAULT 6667 CHECK (port > 0 AND port < 65536),
+       ssl boolean NOT NULL DEFAULT FALSE,
        username text NOT NULL REFERENCES users(name) ON DELETE CASCADE,
        nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
        realname text,
@@ -79,7 +80,7 @@ CREATE TRIGGER channels_notify_insert AFTER INSERT OR UPDATE OR DELETE ON channe
 -- Basic data
 INSERT INTO users (name) VALUES ('jd');
 WITH net AS (
-     INSERT INTO servers (name, username, address, port, nickname) VALUES ('Naquadah', 'jd', 'orion', 8067, 'jdk') RETURNING id
+     INSERT INTO servers (name, username, address, ssl, nickname) VALUES ('Naquadah', 'jd', 'irc.naquadah.org', true, 'jd') RETURNING id
 ) INSERT INTO channels (server, name) SELECT id, '#test' FROM net;
 INSERT INTO channels (server, name) SELECT id, '#test-bis' FROM servers WHERE username='jd' AND name='Naquadah';
 
