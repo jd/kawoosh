@@ -72,6 +72,7 @@
   (postmodern:update-dao server))
 
 (defun server-handle-rpl_welcome (server msg)
+  (declare (ignore msg))
   ;; This is at least needed to store and update current-nickname
   (server-update-channels server))
 
@@ -83,6 +84,7 @@
 (defun server-handle-err_nicknameinuse-message (server msg)
   "Handle nick already in used error."
   ;; Try to change the nick to "current-nickname + _"
+  (declare (ignore msg))
   (let ((new-nick (format nil "~a_" (server-current-nickname server))))
     (cl-irc:nick (server-connection server) new-nick)
     (server-update-current-nickname server new-nick)))
