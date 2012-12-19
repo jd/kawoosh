@@ -72,8 +72,10 @@
   (postmodern:update-dao server))
 
 (defun server-handle-rpl_welcome (server msg)
-  (declare (ignore msg))
   ;; This is at least needed to store and update current-nickname
+  (destructuring-bind (nickname welcome-msg) (cl-irc:arguments msg)
+    (declare (ignore welcome-msg))
+    (server-update-current-nickname server nickname))
   (server-update-channels server))
 
 (defun server-handle-nick (server msg)
@@ -84,10 +86,10 @@
 (defun server-handle-err_nicknameinuse-message (server msg)
   "Handle nick already in used error."
   ;; Try to change the nick to "current-nickname + _"
-  (declare (ignore msg))
-  (let ((new-nick (format nil "~a_" (server-current-nickname server))))
-    (cl-irc:nick (server-connection server) new-nick)
-    (server-update-current-nickname server new-nick)))
+  (destructuring-bind (_ tried-nickname error) (cl-irc:arguments msg)
+    (declare (ignore _ error))
+    (cl-irc:nick (server-connection server)
+                 (format nil "~a_" tried-nickname))))
 
 (defun server-connect (server)
   "Connect to the server."
@@ -98,7 +100,7 @@
                         :connection-security (when (server-ssl-p server)
                                                :ssl)
                         :realname (server-realname server)))
-  (server-update-current-nickname server (server-nickname server))
+  (server-update-current-nickname server nil)
   (server-add-hook server
                    'cl-irc:irc-err_nicknameinuse-message
                    #'server-handle-err_nicknameinuse-message)
