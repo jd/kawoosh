@@ -14,6 +14,7 @@ CREATE TABLE servers (
        nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
        current_nickname text,
        realname text,
+       connected boolean NOT NULL DEFAULT FALSE,
        UNIQUE (name, username)
 );
 

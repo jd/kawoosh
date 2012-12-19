@@ -22,6 +22,7 @@
    (nickname :col-type string :initarg :nickname :accessor server-nickname)
    (current_nickname :col-type string :initarg :nickname :accessor server-current-nickname)
    (realname :col-type string :initarg :nickname :accessor server-realname)
+   (connected :col-type boolean :accessor server-connected-p)
    (connection :accessor server-connection))
   (:metaclass postmodern:dao-class)
   (:table-name servers)
@@ -66,22 +67,20 @@
    (car (cl-irc:arguments msg))
    (cadr (cl-irc:arguments msg))))
 
-(defun server-update-current-nickname (server nickname)
-  "Update the current nickname."
-  (setf (server-current-nickname server) nickname)
-  (postmodern:update-dao server))
-
 (defun server-handle-rpl_welcome (server msg)
   ;; This is at least needed to store and update current-nickname
   (destructuring-bind (nickname welcome-msg) (cl-irc:arguments msg)
     (declare (ignore welcome-msg))
-    (server-update-current-nickname server nickname))
+    (setf (server-current-nickname server) nickname))
+  (setf (server-connected-p server) t)
+  (postmodern:update-dao server)
   (server-update-channels server))
 
 (defun server-handle-nick (server msg)
   "Handle nick change."
   (destructuring-bind (new-nick) (cl-irc:arguments msg)
-    (server-update-current-nickname server new-nick)))
+    (setf (server-current-nickname server) new-nick))
+  (postmodern:update-dao server))
 
 (defun server-handle-err_nicknameinuse-message (server msg)
   "Handle nick already in used error."
@@ -100,7 +99,12 @@
                         :connection-security (when (server-ssl-p server)
                                                :ssl)
                         :realname (server-realname server)))
-  (server-update-current-nickname server nil)
+
+  ;; Update (clean) the server database in the database
+  (setf (server-current-nickname server) "")
+  (setf (server-connected-p server) nil)
+  (postmodern:update-dao server)
+
   (server-add-hook server
                    'cl-irc:irc-err_nicknameinuse-message
                    #'server-handle-err_nicknameinuse-message)
