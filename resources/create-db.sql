@@ -23,6 +23,7 @@ CREATE TABLE channels (
 	server serial NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
 	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\x07\x13\x10]'),
 	password text,
+        names text[],
 	UNIQUE (server, name)
 );
 

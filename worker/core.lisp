@@ -33,7 +33,8 @@
   ((id :col-type integer :reader channel-id)
    (server :col-type integer :accessor channel-server)
    (name :col-type text :accessor channel-name)
-   (password :col-type text :accessor channel-password))
+   (password :col-type text :accessor channel-password)
+   (names :col-type text[] :accessor channel-names))
   (:metaclass postmodern:dao-class)
   (:table-name channels)
   (:keys id))
@@ -76,6 +77,18 @@
   (postmodern:update-dao server)
   (server-update-channels server))
 
+(defun server-handle-rpl_endofnames (server msg)
+  (destructuring-bind (nickname channel-name text) (cl-irc:arguments msg)
+    (declare (ignore nickname text))
+    (let ((channel-dao (car (postmodern:select-dao 'channel (:and (:= 'name channel-name)
+                                                                  (:= 'server (server-id server))))))
+          (users (loop for user being the hash-values of
+                       (cl-irc:users (cl-irc:find-channel (server-connection server) channel-name))
+                       collect (cl-irc:nickname user))))
+      (setf (channel-names channel-dao)
+            (make-array (length users) :initial-contents users))
+      (postmodern:update-dao channel-dao))))
+
 (defun server-handle-nick (server msg)
   "Handle nick change."
   (destructuring-bind (new-nick) (cl-irc:arguments msg)
@@ -109,6 +122,7 @@
                    'cl-irc:irc-err_nicknameinuse-message
                    #'server-handle-err_nicknameinuse-message)
   (server-add-hook server 'cl-irc:irc-rpl_welcome-message #'server-handle-rpl_welcome)
+  (server-add-hook server 'cl-irc:irc-rpl_endofnames-message #'server-handle-rpl_endofnames)
   (server-add-hook server 'cl-irc:irc-nick-message #'server-handle-nick)
   (dolist (msg-type '(privmsg notice kick topic error mode nick join part quit kill invite))
     (server-add-hook server
