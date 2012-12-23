@@ -43,7 +43,7 @@
          (wanted-channels-name (mapcar #'channel-name wanted-channels)))
     ;; PART channels not in the table anymore
     (loop for channel-name being the hash-keys of (cl-irc:channels (server-connection server))
-          unless (find channel-name wanted-channels-name)
+          unless (find channel-name wanted-channels-name :test #'string=)
           do (cl-irc:part (server-connection server) channel-name))
     ;; JOIN new channels
     (loop for channel in wanted-channels
