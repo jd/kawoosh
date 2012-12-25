@@ -25,6 +25,7 @@
    (current_nickname :col-type string :initarg :nickname :accessor server-current-nickname)
    (realname :col-type string :initarg :nickname :accessor server-realname)
    (connected :col-type boolean :accessor server-connected-p)
+   (motd :col-type text :accessor server-motd)
    (connection :accessor server-connection))
   (:metaclass postmodern:dao-class)
   (:table-name servers)
@@ -86,6 +87,20 @@ If last is not nil, put the hook in the last run ones."
   (setf (server-connected-p server) t)
   (postmodern:update-dao server)
   (server-update-channels server))
+
+(defun server-handle-rpl_motd (server msg)
+  (destructuring-bind (target text) (cl-irc:arguments msg)
+    (declare (ignore target))
+    (setf (server-motd server)
+          (format nil "~a~a~%"
+                  (let ((motd (server-motd server)))
+                    (if (eq motd :null) "" motd))
+                  text))))
+
+(defun server-handle-rpl_endofmotd (server msg)
+  (destructuring-bind (target text) (cl-irc:arguments msg)
+    (declare (ignore target text))
+    (postmodern:update-dao server)))
 
 (defun channel-update-names (server channel)
   (let ((users (loop for user being the hash-values of
@@ -182,6 +197,7 @@ If last is not nil, put the hook in the last run ones."
   ;; Update (clean) the server database in the database
   (setf (server-current-nickname server) :null)
   (setf (server-connected-p server) nil)
+  (setf (server-motd server) :null)
   (postmodern:update-dao server)
 
   (dolist (channel (postmodern:select-dao 'channel (:= 'server (server-id server))))
@@ -207,6 +223,8 @@ If last is not nil, put the hook in the last run ones."
   (server-add-hook server 'cl-irc:irc-rpl_topicwhotime-message #'server-handle-rpl_topicwhotime)
 
   (server-add-hook server 'cl-irc:irc-rpl_welcome-message #'server-handle-rpl_welcome)
+  (server-add-hook server 'cl-irc:irc-rpl_motd-message #'server-handle-rpl_motd)
+  (server-add-hook server 'cl-irc:irc-rpl_endofmotd-message #'server-handle-rpl_endofmotd)
   (server-add-hook server 'cl-irc:irc-nick-message #'server-handle-nick)
   (dolist (msg-type '(privmsg notice kick topic error mode nick join part quit kill invite))
     (server-add-hook server
