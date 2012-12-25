@@ -25,6 +25,8 @@ CREATE TABLE channels (
 	password text,
         names text[],
         topic text,
+        topic_who text,
+        topic_time timestamp,
 	UNIQUE (server, name)
 );
 

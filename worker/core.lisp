@@ -3,11 +3,13 @@
 (require :bordeaux-threads)
 (require :postmodern)
 (require :cl-postgres)
+(require :simple-date)
 (require :local-time)
 
 ;; MAIN
 
 (postmodern:connect-toplevel "kawoosh" "kawoosh" "kawoosh" "localhost")
+(postmodern:execute "SET TIMEZONE='UTC'")
 
 (defvar *database-irc*
   (postmodern:connect "kawoosh" "kawoosh" "kawoosh" "localhost"))
@@ -35,7 +37,9 @@
    (name :col-type text :accessor channel-name)
    (password :col-type text :accessor channel-password)
    (names :col-type text[] :accessor channel-names)
-   (topic :col-type text :accessor channel-topic))
+   (topic :col-type text :accessor channel-topic)
+   (topic_who :col-type text :accessor channel-topic-who)
+   (topic_time :col-type timestamp :accessor channel-topic-time))
   (:metaclass postmodern:dao-class)
   (:table-name channels)
   (:keys id))
@@ -56,11 +60,13 @@
 (defun server-add-hook (server msgclass hook &optional last)
   "Add a server hook for msgclass.
 If last is not nil, put the hook in the last run ones."
-  (cl-irc:add-hook (server-connection server)
-                   msgclass
-                   (eval `(lambda (msg)
-                            (funcall ,hook ,server msg)))
-                   last))
+  (funcall (if last
+               #'cl-irc:append-hook
+               #'cl-irc:add-hook)
+           (server-connection server)
+           msgclass
+           (eval `(lambda (msg)
+                    (funcall ,hook ,server msg)))))
 
 (defun server-log-msg (server msg)
   (postmodern:execute
@@ -134,6 +140,19 @@ If last is not nil, put the hook in the last run ones."
   (destructuring-bind (channel-name &optional topic) (cl-irc:arguments msg)
     (let ((channel (channel-find server channel-name)))
       (setf (channel-topic channel) topic)
+      (setf (channel-topic-who channel) (cl-irc:source msg))
+      (setf (channel-topic-time channel) "NOW()")
+      (postmodern:update-dao channel))))
+
+(defun server-handle-rpl_topicwhotime (server msg)
+  (destructuring-bind (target channel-name who time) (cl-irc:arguments msg)
+    (declare (ignore target))
+    (let ((channel (channel-find server channel-name)))
+      (setf (channel-topic-who channel) who)
+      (setf (channel-topic-time channel) (simple-date:universal-time-to-timestamp
+                                          (local-time:timestamp-to-universal
+                                           (local-time:unix-to-timestamp
+                                            (parse-integer time)))))
       (postmodern:update-dao channel))))
 
 (defun server-handle-nick (server msg)
@@ -165,6 +184,12 @@ If last is not nil, put the hook in the last run ones."
   (setf (server-connected-p server) nil)
   (postmodern:update-dao server)
 
+  (dolist (channel (postmodern:select-dao 'channel (:= 'server (server-id server))))
+    (setf (channel-topic channel) :null)
+    (setf (channel-topic-who channel) :null)
+    (setf (channel-topic-time channel) :null)
+    (postmodern:update-dao channel))
+
   (server-add-hook server
                    'cl-irc:irc-err_nicknameinuse-message
                    #'server-handle-err_nicknameinuse-message)
@@ -179,6 +204,7 @@ If last is not nil, put the hook in the last run ones."
   ;; Channel topic handling
   (server-add-hook server 'cl-irc:irc-topic-message #'server-handle-topic)
   (server-add-hook server 'cl-irc:irc-rpl_topic-message #'server-handle-rpl_topic)
+  (server-add-hook server 'cl-irc:irc-rpl_topicwhotime-message #'server-handle-rpl_topicwhotime)
 
   (server-add-hook server 'cl-irc:irc-rpl_welcome-message #'server-handle-rpl_welcome)
   (server-add-hook server 'cl-irc:irc-nick-message #'server-handle-nick)
@@ -196,6 +222,7 @@ If last is not nil, put the hook in the last run ones."
   (server-connect server)
   (bordeaux-threads:make-thread (lambda ()
                                   (let ((postmodern:*database* *database-irc*))
+                                    (postmodern:execute "SET TIMEZONE='UTC'")
                                     (cl-irc:read-message-loop (server-connection server))))
                                 :name "irc-read-message-loop")
   (server-listen server))
