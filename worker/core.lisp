@@ -84,7 +84,11 @@ If last is not nil, put the hook in the last run ones."
   (let ((users (loop for user being the hash-values of
                      (cl-irc:users (cl-irc:find-channel (server-connection server)
                                                         (channel-name channel)))
-                     collect (cl-irc:nickname user))))
+                     collect (format nil"~a!~a@~a ~a"
+                                     (cl-irc:nickname user)
+                                     (cl-irc:username user)
+                                     (cl-irc:hostname user)
+                                     (cl-irc:realname user)))))
     (setf (channel-names channel)
           (if users
               (make-array (length users) :initial-contents users)
