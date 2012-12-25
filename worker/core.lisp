@@ -34,7 +34,8 @@
    (server :col-type integer :accessor channel-server)
    (name :col-type text :accessor channel-name)
    (password :col-type text :accessor channel-password)
-   (names :col-type text[] :accessor channel-names))
+   (names :col-type text[] :accessor channel-names)
+   (topic :col-type text :accessor channel-topic))
   (:metaclass postmodern:dao-class)
   (:table-name channels)
   (:keys id))
@@ -122,6 +123,19 @@ If last is not nil, put the hook in the last run ones."
     (declare (ignore nickname text))
     (channel-update-names server (channel-find server channel-name))))
 
+(defun server-handle-rpl_topic (server msg)
+  (destructuring-bind (target channel-name &optional topic) (cl-irc:arguments msg)
+    (declare (ignore target))
+    (let ((channel (channel-find server channel-name)))
+      (setf (channel-topic channel) topic)
+      (postmodern:update-dao channel))))
+
+(defun server-handle-topic (server msg)
+  (destructuring-bind (channel-name &optional topic) (cl-irc:arguments msg)
+    (let ((channel (channel-find server channel-name)))
+      (setf (channel-topic channel) topic)
+      (postmodern:update-dao channel))))
+
 (defun server-handle-nick (server msg)
   "Handle nick change."
   (destructuring-bind (new-nick) (cl-irc:arguments msg)
@@ -161,6 +175,10 @@ If last is not nil, put the hook in the last run ones."
   (server-add-hook server 'cl-irc:irc-part-message #'server-handle-part t)
   (server-add-hook server 'cl-irc:irc-quit-message #'server-handle-quit t)
   (server-add-hook server 'cl-irc:irc-rpl_endofnames-message #'server-handle-rpl_endofnames t)
+
+  ;; Channel topic handling
+  (server-add-hook server 'cl-irc:irc-topic-message #'server-handle-topic)
+  (server-add-hook server 'cl-irc:irc-rpl_topic-message #'server-handle-rpl_topic)
 
   (server-add-hook server 'cl-irc:irc-rpl_welcome-message #'server-handle-rpl_welcome)
   (server-add-hook server 'cl-irc:irc-nick-message #'server-handle-nick)
