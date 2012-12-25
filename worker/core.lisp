@@ -52,11 +52,14 @@
                           (channel-name channel)
                           :password (channel-password channel)))))
 
-(defun server-add-hook (server msgclass hook)
+(defun server-add-hook (server msgclass hook &optional last)
+  "Add a server hook for msgclass.
+If last is not nil, put the hook in the last run ones."
   (cl-irc:add-hook (server-connection server)
                    msgclass
                    (eval `(lambda (msg)
-                            (funcall ,hook ,server msg)))))
+                            (funcall ,hook ,server msg)))
+                   last))
 
 (defun server-log-msg (server msg)
   (postmodern:execute
