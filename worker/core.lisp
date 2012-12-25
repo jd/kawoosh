@@ -180,7 +180,7 @@ If last is not nil, put the hook in the last run ones."
                         :realname (server-realname server)))
 
   ;; Update (clean) the server database in the database
-  (setf (server-current-nickname server) "")
+  (setf (server-current-nickname server) :null)
   (setf (server-connected-p server) nil)
   (postmodern:update-dao server)
 
