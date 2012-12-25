@@ -80,17 +80,43 @@ If last is not nil, put the hook in the last run ones."
   (postmodern:update-dao server)
   (server-update-channels server))
 
+(defun channel-update-names (server channel)
+  (let ((users (loop for user being the hash-values of
+                     (cl-irc:users (cl-irc:find-channel (server-connection server)
+                                                        (channel-name channel)))
+                     collect (cl-irc:nickname user))))
+    (setf (channel-names channel)
+          (if users
+              (make-array (length users) :initial-contents users)
+              :null))
+    (postmodern:update-dao channel)))
+
+(defun channel-find (server channel-name)
+  (car (postmodern:select-dao 'channel (:and (:= 'name channel-name)
+                                             (:= 'server (server-id server))))))
+
+(defun server-handle-join (server msg)
+  (unless (cl-irc:self-message-p msg)
+    (destructuring-bind (channel-name) (cl-irc:arguments msg)
+      (channel-update-names server (channel-find server channel-name)))))
+
+(defun server-handle-part (server msg)
+  (unless (cl-irc:self-message-p msg)
+    (destructuring-bind (channel-name &optional text) (cl-irc:arguments msg)
+      (declare (ignore text))
+      (channel-update-names server (channel-find server channel-name)))))
+
+(defun server-handle-quit (server msg)
+  (declare (ignore msg))
+  ;; TODO this can be optimized by only iterating on channels that have the
+  ;; user (aka `(cl-irc:source msg)') in the channel.names array.
+  (dolist (channel (postmodern:select-dao 'channel (:= 'server (server-id server))))
+    (channel-update-names server channel)))
+
 (defun server-handle-rpl_endofnames (server msg)
   (destructuring-bind (nickname channel-name text) (cl-irc:arguments msg)
     (declare (ignore nickname text))
-    (let ((channel-dao (car (postmodern:select-dao 'channel (:and (:= 'name channel-name)
-                                                                  (:= 'server (server-id server))))))
-          (users (loop for user being the hash-values of
-                       (cl-irc:users (cl-irc:find-channel (server-connection server) channel-name))
-                       collect (cl-irc:nickname user))))
-      (setf (channel-names channel-dao)
-            (make-array (length users) :initial-contents users))
-      (postmodern:update-dao channel-dao))))
+    (channel-update-names server (channel-find server channel-name))))
 
 (defun server-handle-nick (server msg)
   "Handle nick change."
@@ -124,8 +150,15 @@ If last is not nil, put the hook in the last run ones."
   (server-add-hook server
                    'cl-irc:irc-err_nicknameinuse-message
                    #'server-handle-err_nicknameinuse-message)
+
+  ;; These hooks have to be last to be ran after cl-irc internally updated
+  ;; its copy of users in connection/channels
+  (server-add-hook server 'cl-irc:irc-join-message #'server-handle-join t)
+  (server-add-hook server 'cl-irc:irc-part-message #'server-handle-part t)
+  (server-add-hook server 'cl-irc:irc-quit-message #'server-handle-quit t)
+  (server-add-hook server 'cl-irc:irc-rpl_endofnames-message #'server-handle-rpl_endofnames t)
+
   (server-add-hook server 'cl-irc:irc-rpl_welcome-message #'server-handle-rpl_welcome)
-  (server-add-hook server 'cl-irc:irc-rpl_endofnames-message #'server-handle-rpl_endofnames)
   (server-add-hook server 'cl-irc:irc-nick-message #'server-handle-nick)
   (dolist (msg-type '(privmsg notice kick topic error mode nick join part quit kill invite))
     (server-add-hook server
