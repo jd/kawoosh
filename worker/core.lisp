@@ -45,6 +45,11 @@
   (:table-name channels)
   (:keys id))
 
+(defun irc-message-received-timestamp (msg)
+  "Return the SQL timestamp for msg."
+  (simple-date:universal-time-to-timestamp
+   (cl-irc:received-time msg)))
+
 (defun server-update-channels (server)
   (let* ((wanted-channels (postmodern:select-dao 'channel (:= 'server (server-id server))))
          (wanted-channels-name (mapcar #'channel-name wanted-channels)))
@@ -71,9 +76,9 @@ If last is not nil, put the hook in the last run ones."
 
 (defun server-log-msg (server msg)
   (postmodern:execute
-   "INSERT INTO logs (server, time, source, command, target, payload) VALUES ($1, TO_TIMESTAMP($2), $3, $4, $5, $6)"
+   "INSERT INTO logs (server, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
    (server-id server)
-   (local-time:timestamp-to-unix (local-time:universal-to-timestamp (cl-irc:received-time msg)))
+   (irc-message-received-timestamp msg)
    (cl-irc:source msg)
    (cl-irc:command msg)
    (car (cl-irc:arguments msg))
@@ -156,7 +161,7 @@ If last is not nil, put the hook in the last run ones."
     (let ((channel (channel-find server channel-name)))
       (setf (channel-topic channel) topic)
       (setf (channel-topic-who channel) (cl-irc:source msg))
-      (setf (channel-topic-time channel) "NOW()")
+      (setf (channel-topic-time channel) (irc-message-received-timestamp msg))
       (postmodern:update-dao channel))))
 
 (defun server-handle-rpl_topicwhotime (server msg)
