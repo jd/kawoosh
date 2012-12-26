@@ -41,7 +41,8 @@
    (modes :col-type text[] :accessor channel-modes)
    (topic :col-type text :accessor channel-topic)
    (topic_who :col-type text :accessor channel-topic-who)
-   (topic_time :col-type timestamp :accessor channel-topic-time))
+   (topic_time :col-type timestamp :accessor channel-topic-time)
+   (creation_time :col-type timestamp :accessor channel-creation-time))
   (:metaclass postmodern:dao-class)
   (:table-name channels)
   (:keys id))
@@ -68,7 +69,11 @@
     (loop for channel in wanted-channels
           do (cl-irc:join (server-connection server)
                           (channel-name channel)
-                          :password (channel-password channel)))))
+                          :password (channel-password channel))
+             ;; Send an empty mode command to retrieve channel mode and
+             ;; eventually creation time
+          do (cl-irc:mode (server-connection server)
+                          (channel-name channel)))))
 
 (defun server-add-hook (server msgclass hook &optional last)
   "Add a server hook for msgclass.
@@ -209,15 +214,26 @@ If last is not nil, put the hook in the last run ones."
       (setf (channel-topic-time channel) (irc-message-received-timestamp msg))
       (postmodern:update-dao channel))))
 
+;; XXX move to util
+(defun unix-time->timestamp (unix-time)
+  (simple-date:universal-time-to-timestamp
+   (local-time:timestamp-to-universal
+    (local-time:unix-to-timestamp unix-time))))
+
 (defun server-handle-rpl_topicwhotime (server msg)
   (destructuring-bind (target channel-name who time) (cl-irc:arguments msg)
     (declare (ignore target))
     (let ((channel (channel-find server channel-name)))
       (setf (channel-topic-who channel) who)
-      (setf (channel-topic-time channel) (simple-date:universal-time-to-timestamp
-                                          (local-time:timestamp-to-universal
-                                           (local-time:unix-to-timestamp
-                                            (parse-integer time)))))
+      (setf (channel-topic-time channel) (unix-time->timestamp (parse-integer time)))
+      (postmodern:update-dao channel))))
+
+(defun server-handle-rpl_creationtime (server msg)
+  (destructuring-bind (target channel-name time) (cl-irc:arguments msg)
+    (declare (ignore target))
+    (let ((channel (channel-find server channel-name)))
+      (setf (channel-creation-time channel)
+            (unix-time->timestamp (parse-integer time)))
       (postmodern:update-dao channel))))
 
 (defun server-handle-nick (server msg)
@@ -256,6 +272,7 @@ If last is not nil, put the hook in the last run ones."
     (setf (channel-topic channel) :null)
     (setf (channel-topic-who channel) :null)
     (setf (channel-topic-time channel) :null)
+    (setf (channel-creation-time channel) :null)
     (postmodern:update-dao channel))
 
   (server-add-hook server
@@ -275,6 +292,8 @@ If last is not nil, put the hook in the last run ones."
   (server-add-hook server 'cl-irc:irc-topic-message #'server-handle-topic)
   (server-add-hook server 'cl-irc:irc-rpl_topic-message #'server-handle-rpl_topic)
   (server-add-hook server 'cl-irc:irc-rpl_topicwhotime-message #'server-handle-rpl_topicwhotime)
+
+  (server-add-hook server 'cl-irc:irc-rpl_creationtime-message #'server-handle-rpl_creationtime)
 
   (server-add-hook server 'cl-irc:irc-rpl_welcome-message #'server-handle-rpl_welcome)
   (server-add-hook server 'cl-irc:irc-rpl_motd-message #'server-handle-rpl_motd)

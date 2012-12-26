@@ -29,6 +29,7 @@ CREATE TABLE channels (
         topic text,
         topic_who text,
         topic_time timestamp,
+        creation_time timestamp,
 	UNIQUE (server, name)
 );
 
