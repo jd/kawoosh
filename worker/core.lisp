@@ -206,6 +206,7 @@ If last is not nil, put the hook in the last run ones."
   (postmodern:update-dao server)
 
   (dolist (channel (postmodern:select-dao 'channel (:= 'server (server-id server))))
+    (setf (channel-names channel) :null)
     (setf (channel-topic channel) :null)
     (setf (channel-topic-who channel) :null)
     (setf (channel-topic-time channel) :null)
