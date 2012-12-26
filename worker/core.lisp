@@ -106,7 +106,7 @@ If last is not nil, put the hook in the last run ones."
   (let ((users (loop for user being the hash-values of
                      (cl-irc:users (cl-irc:find-channel (server-connection server)
                                                         (channel-name channel)))
-                     collect (format nil"~a!~a@~a ~a"
+                     collect (format nil "~a!~a@~a ~a"
                                      (cl-irc:nickname user)
                                      (cl-irc:username user)
                                      (cl-irc:hostname user)
