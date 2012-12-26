@@ -25,6 +25,7 @@ CREATE TABLE channels (
 	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\x07\x13\x10]'),
 	password text,
         names text[],
+        modes text[],
         topic text,
         topic_who text,
         topic_time timestamp,

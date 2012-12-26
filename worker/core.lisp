@@ -38,6 +38,7 @@
    (name :col-type text :accessor channel-name)
    (password :col-type text :accessor channel-password)
    (names :col-type text[] :accessor channel-names)
+   (modes :col-type text[] :accessor channel-modes)
    (topic :col-type text :accessor channel-topic)
    (topic_who :col-type text :accessor channel-topic-who)
    (topic_time :col-type timestamp :accessor channel-topic-time))
@@ -49,6 +50,12 @@
   "Return the SQL timestamp for msg."
   (simple-date:universal-time-to-timestamp
    (cl-irc:received-time msg)))
+
+(defun irc-user-serialize (user)
+  (format nil "~a!~a@~a"
+          (cl-irc:nickname user)
+          (cl-irc:username user)
+          (cl-irc:hostname user)))
 
 (defun server-update-channels (server)
   (let* ((wanted-channels (postmodern:select-dao 'channel (:= 'server (server-id server))))
@@ -107,19 +114,42 @@ If last is not nil, put the hook in the last run ones."
     (declare (ignore target text))
     (postmodern:update-dao server)))
 
+;; XXX unit test me
+;; XXX move this into a utility package
+(defun list->array (l)
+  "Recursive list to array conversion."
+  (make-array (length l) :initial-contents l))
+
 (defun channel-update-names (server channel)
   (let ((users (loop for user being the hash-values of
                      (cl-irc:users (cl-irc:find-channel (server-connection server)
                                                         (channel-name channel)))
-                     collect (format nil "~a!~a@~a ~a"
-                                     (cl-irc:nickname user)
-                                     (cl-irc:username user)
-                                     (cl-irc:hostname user)
-                                     (cl-irc:realname user)))))
+                     collect (irc-user-serialize user))))
     (setf (channel-names channel)
-          (if users
-              (make-array (length users) :initial-contents users)
-              :null))
+          (if users (list->array users) :null))
+    (postmodern:update-dao channel)))
+
+(defun irc-channel-serialize-mode (channel)
+  (list->array
+   (loop for (mode raw-value) on (cl-irc:modes channel) by #'cddr
+         for value = (cl-irc:get-mode channel mode)
+         if value
+         collect (format nil "~a~@[~a~]"
+                         mode
+                         (cond ((listp value)
+                                (format nil " ~{~a~^~}"
+                                        ;; There might be list of other
+                                        ;; things, but so far in channels, I
+                                        ;; don't see that's true.
+                                        (mapcar #'irc-user-serialize value)))
+                               ((stringp value)
+                                (format nil " ~a" value)))))))
+
+(defun channel-update-mode (server channel)
+  (let ((irc-channel (cl-irc:find-channel (server-connection server)
+                                          (channel-name channel))))
+    (setf (channel-modes channel)
+          (irc-channel-serialize-mode irc-channel))
     (postmodern:update-dao channel)))
 
 (defun channel-find (server channel-name)
@@ -147,7 +177,22 @@ If last is not nil, put the hook in the last run ones."
 (defun server-handle-rpl_endofnames (server msg)
   (destructuring-bind (nickname channel-name text) (cl-irc:arguments msg)
     (declare (ignore nickname text))
-    (channel-update-names server (channel-find server channel-name))))
+    (let ((channel (channel-find server channel-name)))
+      ;; TODO only one DAO update please
+      (channel-update-names server channel)
+      (channel-update-mode server channel))))
+
+(defun server-handle-rpl_channelmodeis (server msg)
+  (destructuring-bind (target channel &rest mode-arguments) (cl-irc:arguments msg)
+    (declare (ignore target mode-arguments))
+    (channel-update-mode server (channel-find server channel))))
+
+(defun server-handle-mode (server msg)
+  (destructuring-bind (target &rest mode-arguments) (cl-irc:arguments msg)
+    (declare (ignore mode-arguments))
+    (let ((channel (channel-find server target)))
+      (when channel
+        (channel-update-mode server channel)))))
 
 (defun server-handle-rpl_topic (server msg)
   (destructuring-bind (target channel-name &optional topic) (cl-irc:arguments msg)
@@ -207,6 +252,7 @@ If last is not nil, put the hook in the last run ones."
 
   (dolist (channel (postmodern:select-dao 'channel (:= 'server (server-id server))))
     (setf (channel-names channel) :null)
+    (setf (channel-modes channel) :null)
     (setf (channel-topic channel) :null)
     (setf (channel-topic-who channel) :null)
     (setf (channel-topic-time channel) :null)
@@ -222,6 +268,8 @@ If last is not nil, put the hook in the last run ones."
   (server-add-hook server 'cl-irc:irc-part-message #'server-handle-part t)
   (server-add-hook server 'cl-irc:irc-quit-message #'server-handle-quit t)
   (server-add-hook server 'cl-irc:irc-rpl_endofnames-message #'server-handle-rpl_endofnames t)
+  (server-add-hook server 'cl-irc:irc-rpl_channelmodeis-message #'server-handle-rpl_channelmodeis t)
+  (server-add-hook server 'cl-irc:irc-mode-message #'server-handle-mode t)
 
   ;; Channel topic handling
   (server-add-hook server 'cl-irc:irc-topic-message #'server-handle-topic)
