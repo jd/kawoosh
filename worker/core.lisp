@@ -180,7 +180,6 @@ If last is not nil, put the hook in the last run ones."
     (postmodern:update-dao channel)))
 
 (defun irc-channel-serialize-mode (channel)
-  (list->array
    (loop for (mode raw-value) on (cl-irc:modes channel) by #'cddr
          for value = (cl-irc:get-mode channel mode)
          if value
@@ -193,14 +192,16 @@ If last is not nil, put the hook in the last run ones."
                                         ;; don't see that's true.
                                         (mapcar #'irc-user-serialize value)))
                                ((stringp value)
-                                (format nil " ~a" value)))))))
+                                (format nil " ~a" value))))))
 
 (defun channel-update-mode (server channel)
-  (let ((irc-channel (cl-irc:find-channel (server-connection server)
-                                          (channel-name channel))))
-    (setf (channel-modes channel)
-          (irc-channel-serialize-mode irc-channel))
-    (postmodern:update-dao channel)))
+  (setf (channel-modes channel)
+        (let ((modes (irc-channel-serialize-mode (cl-irc:find-channel (server-connection server)
+                                                                      (channel-name channel)))))
+            (if modes
+                (list->array modes)
+              :null)))
+  (postmodern:update-dao channel))
 
 (defun channel-find (server channel-name)
   (car (postmodern:select-dao 'channel (:and (:= 'name channel-name)
