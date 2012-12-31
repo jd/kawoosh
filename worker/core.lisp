@@ -5,6 +5,8 @@
 (require :cl-postgres)
 (require :simple-date)
 (require :local-time)
+(require :cl-async)
+(require :cl-async-ssl)
 
 ;; MAIN
 
@@ -47,6 +49,47 @@
   (:table-name channels)
   (:keys id))
 
+(defvar *stream->connection* (make-hash-table))
+
+(defun server-socket-read (socket stream)
+  (declare (ignore socket))
+  (loop with connection = (gethash stream *stream->connection*)
+        for message = (cl-irc:read-irc-message connection)
+        while message
+        do (cl-irc:irc-message-event connection message)))
+
+(defun server-socket-event (stuff)
+  (format t "STUFF ~a ~%" stuff))
+
+(defun server-connect (server port nickname
+                              &key
+                              (username nil)
+                              (realname nil)
+                              (password nil)
+                              (ssl nil))
+  "Connect to server and return a connection object."
+  (let ((connection (cl-irc:make-connection :connection-type 'cl-irc:connection
+                                            :network-stream (funcall (if ssl
+                                                                         #'cl-async-ssl:tcp-ssl-connect
+                                                                       #'cl-async:tcp-connect)
+                                                                     server (or port 6667)
+                                                                     #'server-socket-read
+                                                                     #'server-socket-event
+                                                                     :stream t)
+                                            :client-stream t
+                                            :server-name server)))
+    ;; Register the connection
+    (setf (gethash (cl-irc:network-stream connection) *stream->connection*)
+          connection)
+
+    (cl-irc:add-default-hooks connection)
+
+    (unless (null password)
+      (cl-irc:pass connection password))
+    (cl-irc:nick connection nickname)
+    (cl-irc:user- connection (or username nickname) 0 (or realname nickname))
+    connection))
+
 (defun irc-message-received-timestamp (msg)
   "Return the SQL timestamp for msg."
   (simple-date:universal-time-to-timestamp
@@ -59,28 +102,30 @@
           (cl-irc:hostname user)))
 
 (defun server-update-channels (server)
-  (let* ((wanted-channels (postmodern:select-dao 'channel (:= 'server (server-id server))))
-         (wanted-channels-name (mapcar #'channel-name wanted-channels)))
-    ;; PART channels not in the table anymore
-    (loop for channel-name being the hash-keys of (cl-irc:channels (server-connection server))
-          unless (find channel-name wanted-channels-name :test #'string=)
-          do (cl-irc:part (server-connection server) channel-name))
-    ;; JOIN new channels
-    (loop for channel in wanted-channels
-          do (cl-irc:join (server-connection server)
-                          (channel-name channel)
-                          :password (channel-password channel))
-             ;; Send an empty mode command to retrieve channel mode and
-             ;; eventually creation time
-          do (cl-irc:mode (server-connection server)
-                          (channel-name channel)))))
+  ;; Check that connection has been set (= connected) otherwise don't do anything.
+  (when (slot-boundp server 'connection)
+    (let* ((wanted-channels (postmodern:select-dao 'channel (:= 'server (server-id server))))
+           (wanted-channels-name (mapcar #'channel-name wanted-channels)))
+      ;; PART channels not in the table anymore
+      (loop for channel-name being the hash-keys of (cl-irc:channels (server-connection server))
+            unless (find channel-name wanted-channels-name :test #'string=)
+            do (cl-irc:part (server-connection server) channel-name))
+      ;; JOIN new channels
+      (loop for channel in wanted-channels
+            do (cl-irc:join (server-connection server)
+                            (channel-name channel)
+                            :password (channel-password channel))
+            ;; Send an empty mode command to retrieve channel mode and
+            ;; eventually creation time
+            do (cl-irc:mode (server-connection server)
+                            (channel-name channel))))))
 
 (defun server-add-hook (server msgclass hook &optional last)
   "Add a server hook for msgclass.
 If last is not nil, put the hook in the last run ones."
   (funcall (if last
                #'cl-irc:append-hook
-               #'cl-irc:add-hook)
+             #'cl-irc:add-hook)
            (server-connection server)
            msgclass
            (eval `(lambda (msg)
@@ -250,14 +295,13 @@ If last is not nil, put the hook in the last run ones."
     (cl-irc:nick (server-connection server)
                  (format nil "~a_" tried-nickname))))
 
-(defun server-connect (server)
+(defun server-run (server)
   "Connect to the server."
   (setf (server-connection server)
-        (cl-irc:connect :nickname (server-nickname server)
-                        :server (format nil "~a" (server-address server))
-                        :port (server-port server)
-                        :connection-security (when (server-ssl-p server)
-                                               :ssl)
+        (server-connect (format nil "~a" (server-address server))
+                        (server-port server)
+                        (server-nickname server)
+                        :ssl (server-ssl-p server)
                         :realname (server-realname server)))
 
   ;; Update (clean) the server database in the database
@@ -309,11 +353,13 @@ If last is not nil, put the hook in the last run ones."
   (loop while (cl-postgres:wait-for-notification postmodern:*database*)
         do (server-update-channels server)))
 
-(let ((server (car (postmodern:select-dao 'server "true LIMIT 1"))))
-  (server-connect server)
-  (bordeaux-threads:make-thread (lambda ()
-                                  (server-listen server))
-                                :name "server-listen")
-  (let ((postmodern:*database* *database-irc*))
-    (postmodern:execute "SET TIMEZONE='UTC'")
-    (cl-irc:read-message-loop (server-connection server))))
+(defun start ()
+  (let ((server (car (postmodern:select-dao 'server "true LIMIT 1"))))
+    (bordeaux-threads:make-thread (lambda ()
+                                    (server-listen server))
+                                  :name "server-listen")
+    (let ((postmodern:*database* *database-irc*))
+      (postmodern:execute "SET TIMEZONE='UTC'")
+      (server-run server))))
+
+(cl-async:start-event-loop #'start)
