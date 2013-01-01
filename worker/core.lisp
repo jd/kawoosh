@@ -1,5 +1,4 @@
 (require :cl-irc)
-(require :cl+ssl)
 (require :bordeaux-threads)
 (require :postmodern)
 (require :cl-postgres)
