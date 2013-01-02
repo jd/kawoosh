@@ -5,23 +5,27 @@ CREATE TABLE users (
 );
 
 CREATE TABLE servers (
-       id serial PRIMARY KEY,
-       name text NOT NULL,
+       name text PRIMARY KEY,
        address text NOT NULL CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
        port integer DEFAULT 6667 CHECK (port > 0 AND port < 65536),
-       ssl boolean NOT NULL DEFAULT FALSE,
+       ssl boolean NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE connection (
+       id serial PRIMARY KEY,
+       server text REFERENCES servers(name),
        username text NOT NULL REFERENCES users(name) ON DELETE CASCADE,
        nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
        current_nickname text,
        realname text,
        motd text,
        connected boolean NOT NULL DEFAULT FALSE,
-       UNIQUE (name, username)
+       UNIQUE (server, username)
 );
 
 CREATE TABLE channels (
 	id serial PRIMARY KEY,
-	server serial NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
 	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\x07\x13\x10]'),
 	password text,
         names text[],
@@ -30,12 +34,12 @@ CREATE TABLE channels (
         topic_who text,
         topic_time timestamp,
         creation_time timestamp,
-	UNIQUE (server, name)
+	UNIQUE (connection, name)
 );
 
 CREATE TABLE logs (
 	id serial PRIMARY KEY,
-	server serial NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
 	time timestamp NOT NULL DEFAULT CURRENT_DATE,
 	source text NOT NULL,
 	command text NOT NULL,
@@ -71,14 +75,14 @@ CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCE
 CREATE OR REPLACE FUNCTION channels_notify() RETURNS trigger AS $$
 BEGIN
   IF (TG_OP = 'DELETE') THEN
-    PERFORM pg_notify('channel_' || OLD.server, '');
+    PERFORM pg_notify('channel_' || OLD.connection, '');
   ELSIF (TG_OP = 'UPDATE') THEN
-    PERFORM pg_notify('channel_' || NEW.server, '');
-    IF (OLD.server != NEW.server) THEN
-      PERFORM pg_notify('channel_' || NEW.server, '');
+    PERFORM pg_notify('channel_' || NEW.connection, '');
+    IF (OLD.connection != NEW.connection) THEN
+      PERFORM pg_notify('channel_' || NEW.connection, '');
     END IF;
   ELSIF (TG_OP = 'INSERT') THEN
-    PERFORM pg_notify('channel_' || NEW.server, '');
+    PERFORM pg_notify('channel_' || NEW.connection, '');
   END IF;
   RETURN NULL;
 END;
@@ -88,8 +92,9 @@ CREATE TRIGGER channels_notify_insert AFTER INSERT OR UPDATE OR DELETE ON channe
 
 -- Basic data
 INSERT INTO users (name) VALUES ('jd');
-WITH net AS (
-     INSERT INTO servers (name, username, address, ssl, nickname) VALUES ('Naquadah', 'jd', 'irc.naquadah.org', true, 'jd') RETURNING id
-) INSERT INTO channels (server, name) SELECT id, '#test' FROM net;
-INSERT INTO channels (server, name) SELECT id, '#test-bis' FROM servers WHERE username='jd' AND name='Naquadah';
+INSERT INTO servers (name, address, ssl) VALUES ('Naquadah', 'irc.naquadah.org', true);
+WITH conn AS (
+     INSERT INTO connection (server, username, nickname) VALUES ('Naquadah', 'jd', 'jd') RETURNING id
+) INSERT INTO channels (connection, name) SELECT id, '#test' FROM conn;
+INSERT INTO channels (connection, name) SELECT id, '#test-bis' FROM connection WHERE username='jd' AND server='Naquadah';
 
