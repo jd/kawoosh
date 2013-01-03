@@ -77,8 +77,11 @@ BEGIN
   IF (TG_OP = 'DELETE') THEN
     PERFORM pg_notify('channel_' || OLD.connection, '');
   ELSIF (TG_OP = 'UPDATE') THEN
-    PERFORM pg_notify('channel_' || NEW.connection, '');
-    IF (OLD.connection != NEW.connection) THEN
+    IF (OLD.connection != NEW.connection) OR (OLD.name != NEW.name) THEN
+      RAISE EXCEPTION 'You are not allowed to modify name or connection of a channel'
+            USING HINT = 'Do DELETE and then INSERT';
+    ELSIF (OLD.password != NEW.password) THEN
+      -- Password change, re-join channel
       PERFORM pg_notify('channel_' || NEW.connection, '');
     END IF;
   ELSIF (TG_OP = 'INSERT') THEN
