@@ -12,9 +12,6 @@
 (postmodern:connect-toplevel "kawoosh" "kawoosh" "kawoosh" "localhost")
 (postmodern:execute "SET TIMEZONE='UTC'")
 
-(defvar *database-irc*
-  (postmodern:connect "kawoosh" "kawoosh" "kawoosh" "localhost"))
-
 (defclass server ()
   ((name :col-type string :initarg :name :accessor server-name)
    (address :col-type string :initarg :address :accessor server-address)
@@ -33,7 +30,7 @@
    (realname :col-type string :initarg :nickname :accessor connection-realname)
    (connected :col-type boolean :accessor connection-connected-p)
    (motd :col-type text :accessor connection-motd)
-   (network-connection :accessor connection-network-connection))
+   (network-connection :initform nil :accessor connection-network-connection))
   (:metaclass postmodern:dao-class)
   (:keys id))
 
@@ -106,7 +103,8 @@
 
 (defun connection-update-channels (connection)
   ;; Check that connection has been set (= connected) otherwise don't do anything.
-  (when (slot-boundp connection 'network-connection)
+  (when (and (connection-network-connection connection)
+             (cl-irc::connectedp (connection-network-connection connection)))
     (let* ((wanted-channels (postmodern:select-dao 'channel (:= 'connection (connection-id connection))))
            (wanted-channels-name (mapcar #'channel-name wanted-channels)))
       (with-slots (network-connection)
@@ -355,18 +353,37 @@ If last is not nil, put the hook in the last run ones."
                      (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC")
                      #'connection-log-msg)))
 
+
+(defvar *notification-lock* (bt:make-lock "notifications"))
+(defvar *notifications* nil)
+
 (defun connection-listen (connection)
   (postmodern:execute (concatenate 'string "LISTEN channel_" (write-to-string (connection-id connection))))
-  (loop while (cl-postgres:wait-for-notification postmodern:*database*)
-        do (connection-update-channels connection)))
+  (loop for (channel payload pid) = (multiple-value-list
+                                     (cl-postgres:wait-for-notification postmodern:*database*))
+        do (bt:with-lock-held (*notification-lock*)
+             ;; XXX Don't push if already there
+             (pushnew (list channel payload) *notifications*
+                      :test #'equal))))
+
+(defun notification-handler (connection)
+  (bt:with-lock-held (*notification-lock*)
+    (loop for (channel payload) in *notifications*
+          do (connection-update-channels connection))
+    (setq *notifications* nil))
+  (as:delay
+      (eval `(lambda () (notification-handler ,connection)))
+    :time 1))
 
 (defun start ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
-    (bordeaux-threads:make-thread (lambda ()
-                                    (connection-listen connection))
-                                  :name "connection-listen")
-    (let ((postmodern:*database* *database-irc*))
-      (postmodern:execute "SET TIMEZONE='UTC'")
-      (connection-run connection))))
+    (bt:make-thread (lambda ()
+                      (let ((postmodern:*database*
+                              (postmodern:connect "kawoosh" "kawoosh" "kawoosh" "localhost")))
+                        (postmodern:execute "SET TIMEZONE='UTC'")
+                        (connection-listen connection))
+                      :name "connection-listen"))
+    (notification-handler connection)
+    (connection-run connection)))
 
 (cl-async:start-event-loop #'start)
