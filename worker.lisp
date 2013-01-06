@@ -386,4 +386,5 @@ If last is not nil, put the hook in the last run ones."
     (notification-handler connection)
     (connection-run connection)))
 
-(cl-async:start-event-loop #'start)
+(defun start-event-loop ()
+  (cl-async:start-event-loop #'start))
