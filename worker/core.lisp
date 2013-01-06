@@ -72,7 +72,7 @@
                                             :network-stream (funcall (if ssl
                                                                          #'cl-async-ssl:tcp-ssl-connect
                                                                        #'cl-async:tcp-connect)
-                                                                     server (or port 6667)
+                                                                     server port
                                                                      #'connection-socket-read
                                                                      #'connection-socket-event
                                                                      :stream t)
