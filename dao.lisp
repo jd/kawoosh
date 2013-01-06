@@ -1,8 +1,20 @@
 (defpackage kawoosh-dao
-  (:use :cl
-   :postmodern))
+  (:use cl
+        postmodern)
+  (:export user
+           server
+           connection
+           channel))
 
 (in-package :kawoosh-dao)
+
+
+(defclass user ()
+  ((name :col-type string :initarg :name :accessor user-name)
+   (password :col-type string :initarg :password :accessor user-password))
+  (:metaclass postmodern:dao-class)
+  (:table-name users)
+  (:keys name))
 
 (defclass server ()
   ((name :col-type string :initarg :name :accessor server-name)

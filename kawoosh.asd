@@ -7,7 +7,8 @@
                #:postmodern
                #:simple-date
                #:clack
-               #:clack-app-route)
+               #:clack-app-route
+               #:cl-json)
   :components
   ((:file "dao")
    (:file "httpd" :depends-on ("dao"))

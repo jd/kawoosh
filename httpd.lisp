@@ -2,8 +2,10 @@
   (:use cl
         kawoosh-dao
         clack
-        clack.app.route)
-  (:export :start))
+        postmodern
+        clack.app.route
+        json)
+  (:export start))
 
 (in-package :kawoosh-httpd)
 
@@ -18,19 +20,22 @@
     ("Hello world!")))
 
 (defun user-get (env)
-  (with-parameters env (user)
-    `(200
-      (:content-type "text/plain")
-      (,(format nil "Hey hey you are ~a~%" user)))))
+  (with-parameters env (name)
+    (let ((user (car (select-dao 'user (:= 'name name)))))
+      ;; XXX DO NOT RETURN PASSWORD DAMN IT
+      ;; TODO return 404 on not found
+      `(200
+        (:content-type "text/plain")
+        (,(encode-json-to-string user))))))
 
 (defroutes app
  (GET "/" #'index)
  (GET "/user" #'user-list)
- (GET "/user/:user" #'user-get)
+ (GET "/user/:name" #'user-get)
  (GET "/server" #'server-list)
- (GET "/server/:server" #'server-get)
+ (GET "/server/:name" #'server-get)
  (GET "/channel" #'channel-list)
- (GET "/channel/:channel" #'channel-get))
+ (GET "/channel/:name" #'channel-get))
 
 (defun start ()
   (clackup #'app))
