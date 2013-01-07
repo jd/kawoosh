@@ -19,13 +19,21 @@
     (:content-type "text/plain")
     ("Hello world!")))
 
+;; TODO Limit to admin
+(defun user-list (env)
+  ;; TODO DO NOT RETURN PASSWORD DAMN IT
+  ;; TODO return 404 on not found
+  `(200
+    (:content-type "application/json")
+    (,(encode-json-to-string (select-dao 'user)))))
+
 (defun user-get (env)
   (with-parameters env (name)
     (let ((user (car (select-dao 'user (:= 'name name)))))
-      ;; XXX DO NOT RETURN PASSWORD DAMN IT
+      ;; TODO DO NOT RETURN PASSWORD DAMN IT
       ;; TODO return 404 on not found
       `(200
-        (:content-type "text/plain")
+        (:content-type "application/json")
         (,(encode-json-to-string user))))))
 
 (defroutes app
