@@ -30,11 +30,14 @@
 (defun user-get (env)
   (with-parameters env (name)
     (let ((user (car (select-dao 'user (:= 'name name)))))
-      ;; TODO DO NOT RETURN PASSWORD DAMN IT
-      ;; TODO return 404 on not found
-      `(200
-        (:content-type "application/json")
-        (,(encode-json-to-string user))))))
+      (if user
+          `(200
+            (:content-type "application/json")
+            (,(encode-json-to-string (slot-makunbound user 'kawoosh-dao:password))))
+          `(404
+            (:content-type "application/json")
+            (,(encode-json-to-string '((status . "Not Found")
+                                       (message . "No such user")))))))))
 
 (defroutes app
  (GET "/" #'index)

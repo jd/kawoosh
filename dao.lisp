@@ -4,7 +4,8 @@
   (:export user
            server
            connection
-           channel))
+           channel
+           password))
 
 (in-package :kawoosh-dao)
 
