@@ -20,6 +20,7 @@
     ("Hello world!")))
 
 ;; TODO Limit to admin
+;; TODO paginate?
 (defun user-list (env)
   `(200
     (:content-type "application/json")
