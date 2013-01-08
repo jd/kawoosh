@@ -39,6 +39,24 @@
             (:content-type "application/json")
             (,(encode-json-to-string '((status . "Not Found")
                                        (message . "No such user")))))))))
+;; TODO paginate?
+(defun server-list (env)
+  `(200
+    (:content-type "application/json")
+    (,(encode-json-to-string (select-dao 'server)))))
+
+(defun server-get (env)
+  (with-parameters env (name)
+    (let ((server (car (select-dao 'server (:= 'name name)))))
+      (if server
+          `(200
+            (:content-type "application/json")
+            (,(encode-json-to-string server)))
+          `(404
+            (:content-type "application/json")
+            (,(encode-json-to-string '((status . "Not Found")
+                                       (message . "No such server")))))))))
+
 
 (defroutes app
  (GET "/" #'index)
