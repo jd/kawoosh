@@ -131,8 +131,8 @@ If last is not nil, put the hook in the last run ones."
              #'cl-irc:add-hook)
            (connection-network-connection connection)
            msgclass
-           (eval `(lambda (msg)
-                    (funcall ,hook ,connection msg)))))
+           (lambda (msg)
+             (funcall hook connection msg))))
 
 (defun connection-log-msg (connection msg)
   (postmodern:execute
@@ -372,8 +372,8 @@ If last is not nil, put the hook in the last run ones."
           do (connection-update-channels connection))
     (setq *notifications* nil))
   (as:delay
-      (eval `(lambda () (notification-handler ,connection)))
-    :time 1))
+   (lambda () (notification-handler connection))
+   :time 1))
 
 (defun start ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
