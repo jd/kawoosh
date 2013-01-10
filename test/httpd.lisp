@@ -1,22 +1,24 @@
 (defpackage kawoosh.test.httpd
   (:use cl
+        cl-json
         clack.test
         drakma
+        kawoosh.httpd
         cl-test-more))
 (in-package :kawoosh.test.httpd)
+
+;; TODO move to util
+(defun decode-json-body (body)
+  (decode-json-from-string (flex:octets-to-string body)))
 
 (plan 3)
 
 (test-app
- (lambda (env)
-   (declare (ignore env))
-   `(200 (:content-type "text/plain") ("Hello, Clack!")))
+ #'app
  (lambda ()
    (multiple-value-bind (body status headers)
-       (http-request "http://localhost:4242")
+       (http-request "http://localhost:4242/user")
      (is status 200)
-     (is body "Hello, Clack!")
-     (is (cdr (assoc :content-type headers)) "text/plain; charset=utf-8")))
- "Testing simple application")
-
-(finalize)
+     (is (decode-json-body body) '(((:name . "jd"))))
+     (is (cdr (assoc :content-type headers)) "application/json")))
+ "Testing Kawoosh httpd")

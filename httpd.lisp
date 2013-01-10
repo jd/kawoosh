@@ -1,13 +1,14 @@
-(defpackage kawoosh-httpd
+(defpackage kawoosh.httpd
   (:use cl
         kawoosh-dao
         clack
         postmodern
         clack.app.route
         json)
-  (:export start))
+  (:export start
+           app))
 
-(in-package :kawoosh-httpd)
+(in-package :kawoosh.httpd)
 
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)

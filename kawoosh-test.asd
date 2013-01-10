@@ -1,13 +1,15 @@
 (defsystem kawoosh-test
   :author "Julien Danjou <julien@danjou.info>"
   :description "IRC/HTTP gateway"
-  :depends-on (#:clack
+  :depends-on (#:kawoosh
+               #:clack
                #:clack-test
                #:clack-app-route
                #:postmodern
                #:cl-json
                #:cl-test-more
-               #:drakma)
+               #:drakma
+               #:flexi-streams)
   :components
   ((:file "dao")
    (:file "httpd" :depends-on ("dao"))

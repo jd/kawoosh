@@ -12,4 +12,4 @@
   :components
   ((:file "dao")
    (:file "httpd" :depends-on ("dao"))
-   (:file "worker" :depends-on ("dao")))
+   (:file "worker" :depends-on ("dao"))))
