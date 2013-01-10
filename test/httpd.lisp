@@ -11,7 +11,7 @@
 (defun decode-json-body (body)
   (decode-json-from-string (flex:octets-to-string body)))
 
-(plan 6)
+(plan 12)
 
 (defmacro do-test (url comment &rest body)
   `(test-app
@@ -32,4 +32,22 @@
   "Testing user retrieval"
   (is status 200)
   (is (decode-json-body body) '((:name . "jd")))
+  (is (cdr (assoc :content-type headers)) "application/json"))
+
+(do-test "http://localhost:4242/server"
+  "Testing server listing"
+  (is status 200)
+  (is (decode-json-body body) '(((:name . "Naquadah")
+                                 (:address . "irc.naquadah.org")
+                                 (:port . 6667)
+                                 (:ssl . t))))
+  (is (cdr (assoc :content-type headers)) "application/json"))
+
+(do-test "http://localhost:4242/server/Naquadah"
+  "Testing server retrieval"
+  (is status 200)
+  (is (decode-json-body body) '((:name . "Naquadah")
+                                (:address . "irc.naquadah.org")
+                                (:port . 6667)
+                                (:ssl . t)))
   (is (cdr (assoc :content-type headers)) "application/json"))
