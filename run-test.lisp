@@ -2,3 +2,4 @@
 (require 'kawoosh-test)
 
 (cl-test-more:run-test-package 'kawoosh.test.httpd)
+(exit)
