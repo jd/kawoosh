@@ -5,7 +5,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE servers (
-       name text PRIMARY KEY,
+       name text PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
        address text NOT NULL CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
        port integer DEFAULT 6667 CHECK (port > 0 AND port < 65536),
        ssl boolean NOT NULL DEFAULT FALSE

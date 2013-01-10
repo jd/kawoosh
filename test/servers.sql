@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(4);
+SELECT plan(5);
 
 DELETE FROM connection;
 DELETE FROM servers;
@@ -9,6 +9,14 @@ INSERT INTO users (name) VALUES ('jd');
 INSERT INTO servers (name, address) VALUES ('OFTC', '  IRC.oftc.net');
 SELECT is(address, 'irc.oftc.net', 'Valid server address') FROM servers;
 SELECT ok(count(*) = 1, 'Valid server count') FROM servers;
+
+PREPARE insert_invalid_server_name AS INSERT INTO servers (name, address) VALUES ('S€rver!', 'irc.net');
+SELECT throws_ok(
+       'insert_invalid_server_name',
+       23514,
+       'new row for relation "servers" violates check constraint "servers_name_check"',
+       'Invalid server name with UTF-8 char'
+);
 
 PREPARE insert_invalid_server_address AS INSERT INTO servers (name, address) VALUES ('IRC', 'invalid%.irc.net');
 SELECT throws_ok(
