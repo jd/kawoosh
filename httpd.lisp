@@ -69,6 +69,14 @@ O to STREAM (or to *JSON-OUTPUT*)."
             (,(encode-json-to-string '((status . "Not Found")
                                        (message . "No such server")))))))))
 
+;; TODO paginate?
+(defun connection-list (env)
+  (with-parameters env (name)
+  `(200
+    (:content-type "application/json")
+    (,(encode-json-to-string (mapcar (lambda (c) (slot-makunbound c 'kawoosh.dao:id))
+                                     (select-dao 'connection (:= 'username name))))))))
+
 
 (defroutes app
  (GET "/" #'index)
@@ -76,8 +84,8 @@ O to STREAM (or to *JSON-OUTPUT*)."
  (GET "/user/:name" #'user-get)
  (GET "/server" #'server-list)
  (GET "/server/:name" #'server-get)
- (GET "/channel" #'channel-list)
- (GET "/channel/:name" #'channel-get))
+ (GET "/user/:name/connection" #'connection-list)
+ (GET "/user/:name/connection/:server" #'connection-get))
 
 (defun start ()
   (clackup #'app))
