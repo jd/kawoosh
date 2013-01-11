@@ -66,7 +66,7 @@
 (test-app
  #'app
  (lambda ()
-   (loop for test in *tests*
+   (loop for test in (reverse *tests*)
          do (multiple-value-bind (body status headers)
                 (http-request (first test))
               (declare (special body status headers))
