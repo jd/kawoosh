@@ -26,7 +26,7 @@
   `(200
     (:content-type "application/json")
     (,(encode-json-to-string (mapcar (lambda (user)
-                                       (slot-makunbound user 'kawoosh-dao:password))
+                                       (slot-makunbound user 'kawoosh.dao:password))
                                      (select-dao 'user))))))
 
 (defun user-get (env)
@@ -35,7 +35,7 @@
       (if user
           `(200
             (:content-type "application/json")
-            (,(encode-json-to-string (slot-makunbound user 'kawoosh-dao:password))))
+            (,(encode-json-to-string (slot-makunbound user 'kawoosh.dao:password))))
           `(404
             (:content-type "application/json")
             (,(encode-json-to-string '((status . "Not Found")
