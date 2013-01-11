@@ -1,6 +1,6 @@
 (defpackage kawoosh.httpd
   (:use cl
-        kawoosh-dao
+        kawoosh.dao
         clack
         postmodern
         clack.app.route

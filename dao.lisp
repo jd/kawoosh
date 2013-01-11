@@ -1,23 +1,26 @@
-(defpackage kawoosh-dao
+(defpackage kawoosh.dao
   (:use cl
         postmodern)
-  (:export user
+  (:export dao-object
+           user
            server
            connection
            channel
-           password))
+           password
+           id))
 
-(in-package :kawoosh-dao)
+(in-package :kawoosh.dao)
 
+(defclass dao-object () nil)
 
-(defclass user ()
+(defclass user (dao-object)
   ((name :col-type string :initarg :name :accessor user-name)
    (password :col-type string :initarg :password :accessor user-password))
   (:metaclass postmodern:dao-class)
   (:table-name users)
   (:keys name))
 
-(defclass server ()
+(defclass server (dao-object)
   ((name :col-type string :initarg :name :accessor server-name)
    (address :col-type string :initarg :address :accessor server-address)
    (port :col-type integer :initarg :port :accessor server-port)
@@ -26,7 +29,7 @@
   (:table-name servers)
   (:keys name))
 
-(defclass connection ()
+(defclass connection (dao-object)
   ((id :col-type serial :reader connection-id)
    (server :col-type text :initarg :server :accessor connection-server)
    (username :col-type string :initarg :username :accessor connection-username)
@@ -39,7 +42,7 @@
   (:metaclass postmodern:dao-class)
   (:keys id))
 
-(defclass channel ()
+(defclass channel (dao-object)
   ((id :col-type serial :reader channel-id)
    (connection :col-type serial :accessor channel-connection)
    (name :col-type text :accessor channel-name)
