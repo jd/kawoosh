@@ -10,6 +10,7 @@
 
 (in-package :kawoosh.httpd)
 
+;; XXX Move into dao.lisp?
 (defmethod encode-json ((o kawoosh.dao:dao-object)
                         &optional (stream *json-output*))
   "Write the JSON representation (Object) of the postmodern DAO CLOS object
@@ -20,6 +21,16 @@ O to STREAM (or to *JSON-OUTPUT*)."
                    (encode-json (if (eq value :null) nil value) stream)))
                o)))
 
+(defmethod encode-json ((o kawoosh.dao:user)
+                        &optional (stream *json-output*))
+  "Write the JSON representation (Object) of the postmodern DAO CLOS object
+O to STREAM (or to *JSON-OUTPUT*)."
+  (with-object (stream)
+    (json::map-slots (lambda (key value)
+                       (unless (member key '(kawoosh.dao:password))
+                         (as-object-member (key stream)
+                           (encode-json (if (eq value :null) nil value) stream))))
+                       o)))
 
 (defmethod encode-json ((o kawoosh.dao:connection)
                         &optional (stream *json-output*))
@@ -31,7 +42,6 @@ O to STREAM (or to *JSON-OUTPUT*)."
                          (as-object-member (key stream)
                            (encode-json (if (eq value :null) nil value) stream))))
                        o)))
-
 
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)
@@ -48,9 +58,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
 (defun user-list (env)
   `(200
     (:content-type "application/json")
-    (,(encode-json-to-string (mapcar (lambda (user)
-                                       (slot-makunbound user 'kawoosh.dao:password))
-                                     (select-dao 'user))))))
+    (,(encode-json-to-string (select-dao 'user)))))
 
 (defun user-get (env)
   (with-parameters env (name)
@@ -58,7 +66,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
       (if user
           `(200
             (:content-type "application/json")
-            (,(encode-json-to-string (slot-makunbound user 'kawoosh.dao:password))))
+            (,(encode-json-to-string user)))
           `(404
             (:content-type "application/json")
             (,(encode-json-to-string '((status . "Not Found")
@@ -86,8 +94,8 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (with-parameters env (username)
   `(200
     (:content-type "application/json")
-    (,(encode-json-to-string (mapcar (lambda (c) (slot-makunbound c 'kawoosh.dao:id))
-                                     (select-dao 'connection (:= 'username username))))))))
+    (,(encode-json-to-string (select-dao 'connection (:= 'username username)))))))
+
 
 (defun connection-get (env)
   (with-parameters env (username server)
