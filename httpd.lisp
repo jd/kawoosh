@@ -10,16 +10,15 @@
 
 (in-package :kawoosh.httpd)
 
-
-(defmethod json:encode-json ((o dao-object)
-                             &optional (stream json:*json-output*))
+(defmethod encode-json ((o kawoosh.dao:dao-object)
+                        &optional (stream json:*json-output*))
   "Write the JSON representation (Object) of the postmodern DAO CLOS object
 O to STREAM (or to *JSON-OUTPUT*)."
-  (json:with-object (stream)
+  (with-object (stream)
     (json::map-slots (lambda (key value)
-                       (as-object-member (key stream)
-                         (json:encode-json (if (eq value :null) nil value) stream)))
-                     o)))
+                 (as-object-member (key stream)
+                   (encode-json (if (eq value :null) nil value) stream)))
+               o)))
 
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)
