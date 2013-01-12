@@ -11,7 +11,7 @@
 (defun decode-json-body (body)
   (decode-json-from-string (flex:octets-to-string body)))
 
-(plan 29)
+(plan 39)
 
 (defvar *tests* nil
   "Test list.")
@@ -61,13 +61,30 @@
   (is (decode-json-body body) '((:status . "Not Found") (:message . "No such server")))
   (is (cdr (assoc :content-type headers)) "application/json"))
 
-
 (do-test "http://localhost:4242/user/jd/connection"
   "Testing connection listing"
   (is status 200 "Status code 200")
   (let* ((data (decode-json-body (symbol-value 'body)))
          (s (first data)))
     (is (length data) 1 "Number of connection")
+    (is (set-exclusive-or (mapcar 'car s)
+                          '(:server :username :nickname :current--nickname
+                            :realname :connected :motd :network-connection))
+        nil
+        "Connection keys")
+    (is (cdr (assoc :server s)) "Naquadah" "Server name")
+    (is (cdr (assoc :realname s)) "Julien Danjou" "Realname")
+    (is (cdr (assoc :nickname s)) "jd" "Nickname")
+    (is (cdr (assoc :username s)) "jd" "Username")
+    (is (assoc :current--nickname s) '(:current--nickname . nil) "Current nickname")
+    (is (assoc :motd s) '(:motd . nil) "Server MOTD")
+    (is (assoc :connected s) '(:connected . nil) "Server MOTD"))
+  (is (cdr (assoc :content-type headers)) "application/json"))
+
+(do-test "http://localhost:4242/user/jd/connection/Naquadah"
+  "Testing connection retrieval"
+  (is status 200 "Status code 200")
+  (let* ((s (decode-json-body (symbol-value 'body))))
     (is (set-exclusive-or (mapcar 'car s)
                           '(:server :username :nickname :current--nickname
                             :realname :connected :motd :network-connection))

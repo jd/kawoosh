@@ -11,7 +11,7 @@
 (in-package :kawoosh.httpd)
 
 (defmethod encode-json ((o kawoosh.dao:dao-object)
-                        &optional (stream json:*json-output*))
+                        &optional (stream *json-output*))
   "Write the JSON representation (Object) of the postmodern DAO CLOS object
 O to STREAM (or to *JSON-OUTPUT*)."
   (with-object (stream)
@@ -19,6 +19,19 @@ O to STREAM (or to *JSON-OUTPUT*)."
                  (as-object-member (key stream)
                    (encode-json (if (eq value :null) nil value) stream)))
                o)))
+
+
+(defmethod encode-json ((o kawoosh.dao:connection)
+                        &optional (stream *json-output*))
+  "Write the JSON representation (Object) of the postmodern DAO CLOS object
+O to STREAM (or to *JSON-OUTPUT*)."
+  (with-object (stream)
+    (json::map-slots (lambda (key value)
+                       (unless (member key '(kawoosh.dao:id))
+                         (as-object-member (key stream)
+                           (encode-json (if (eq value :null) nil value) stream))))
+                       o)))
+
 
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)
@@ -70,11 +83,24 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
 ;; TODO paginate?
 (defun connection-list (env)
-  (with-parameters env (name)
+  (with-parameters env (username)
   `(200
     (:content-type "application/json")
     (,(encode-json-to-string (mapcar (lambda (c) (slot-makunbound c 'kawoosh.dao:id))
-                                     (select-dao 'connection (:= 'username name))))))))
+                                     (select-dao 'connection (:= 'username username))))))))
+
+(defun connection-get (env)
+  (with-parameters env (username server)
+    (let ((connection (car (select-dao 'connection (:and (:= 'username username)
+                                                         (:= 'server server))))))
+      (if connection
+          `(200
+            (:content-type "application/json")
+            (,(encode-json-to-string connection)))
+          `(404
+            (:content-type "application/json")
+            (,(encode-json-to-string '((status . "Not Found")
+                                       (message . "No such connection")))))))))
 
 
 (defroutes app
@@ -83,8 +109,8 @@ O to STREAM (or to *JSON-OUTPUT*)."
  (GET "/user/:name" #'user-get)
  (GET "/server" #'server-list)
  (GET "/server/:name" #'server-get)
- (GET "/user/:name/connection" #'connection-list)
- (GET "/user/:name/connection/:server" #'connection-get))
+ (GET "/user/:username/connection" #'connection-list)
+ (GET "/user/:username/connection/:server" #'connection-get))
 
 (defun start ()
   (clackup #'app))
