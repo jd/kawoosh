@@ -1,5 +1,6 @@
 (defpackage kawoosh.dao
   (:use cl
+        cl-json
         postmodern)
   (:export dao-object
            user
@@ -12,6 +13,22 @@
 (in-package :kawoosh.dao)
 
 (defclass dao-object () nil)
+
+(defvar *dao-json-filter*
+  '((kawoosh.dao:user password)
+    (kawoosh.dao:connection id))
+  "Fields to not export when dumping a DAO object to JSON.")
+
+(defmethod encode-json ((o dao-object)
+                        &optional (stream *json-output*))
+  "Write the JSON representation (Object) of the postmodern DAO CLOS object
+O to STREAM (or to *JSON-OUTPUT*)."
+  (with-object (stream)
+    (json::map-slots (lambda (key value)
+                       (unless (member key (cdr (assoc (type-of o) *dao-json-filter*)))
+                         (as-object-member (key stream)
+                           (encode-json (if (eq value :null) nil value) stream))))
+                       o)))
 
 (defclass user (dao-object)
   ((name :col-type string :initarg :name :accessor user-name)

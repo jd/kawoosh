@@ -10,39 +10,6 @@
 
 (in-package :kawoosh.httpd)
 
-;; XXX Move into dao.lisp?
-(defmethod encode-json ((o kawoosh.dao:dao-object)
-                        &optional (stream *json-output*))
-  "Write the JSON representation (Object) of the postmodern DAO CLOS object
-O to STREAM (or to *JSON-OUTPUT*)."
-  (with-object (stream)
-    (json::map-slots (lambda (key value)
-                 (as-object-member (key stream)
-                   (encode-json (if (eq value :null) nil value) stream)))
-               o)))
-
-(defmethod encode-json ((o kawoosh.dao:user)
-                        &optional (stream *json-output*))
-  "Write the JSON representation (Object) of the postmodern DAO CLOS object
-O to STREAM (or to *JSON-OUTPUT*)."
-  (with-object (stream)
-    (json::map-slots (lambda (key value)
-                       (unless (member key '(kawoosh.dao:password))
-                         (as-object-member (key stream)
-                           (encode-json (if (eq value :null) nil value) stream))))
-                       o)))
-
-(defmethod encode-json ((o kawoosh.dao:connection)
-                        &optional (stream *json-output*))
-  "Write the JSON representation (Object) of the postmodern DAO CLOS object
-O to STREAM (or to *JSON-OUTPUT*)."
-  (with-object (stream)
-    (json::map-slots (lambda (key value)
-                       (unless (member key '(kawoosh.dao:id))
-                         (as-object-member (key stream)
-                           (encode-json (if (eq value :null) nil value) stream))))
-                       o)))
-
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)
        (getf ,env :route.parameters)
