@@ -8,7 +8,31 @@
            connection
            channel
            password
-           id))
+           id
+           user-name
+           user-password
+           server-name
+           server-address
+           server-port
+           server-ssl-p
+           connection-id
+           connection-server
+           connection-username
+           connection-nickname
+           connection-current-nickname
+           connection-realname
+           connection-connected-p
+           connection-motd
+           connection-network-connection
+           channel-connection
+           channel-name
+           channel-password
+           channel-names
+           channel-modes
+           channel-topic
+           channel-topic-who
+           channel-topic-time
+           channel-creation-time))
 
 (in-package :kawoosh.dao)
 

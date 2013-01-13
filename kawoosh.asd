@@ -5,9 +5,11 @@
                #:cl-async-ssl
                #:cl-irc
                #:postmodern
+               #:cl-postgres
                #:simple-date
                #:clack
                #:clack-app-route
+               #:bordeaux-threads
                #:cl-json)
   :components
   ((:file "dao")
