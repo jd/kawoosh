@@ -4,14 +4,9 @@
   (:export start))
 
 (in-package :kawoosh.worker)
-;; MAIN
 
-(defvar *stream->connection* (make-hash-table))
-
-(defun connection-socket-read (socket stream)
-  (declare (ignore socket))
-  (loop with connection = (gethash stream *stream->connection*)
-        for message = (irc:read-irc-message connection)
+(defun connection-socket-read (connection)
+  (loop for message = (irc:read-irc-message connection)
         while message
         do (irc:irc-message-event connection message)))
 
@@ -25,19 +20,34 @@
                              (password nil)
                              (ssl nil))
   "Connect to server and return a connection object."
-  (let ((connection (irc:make-connection :connection-type 'irc:connection
-                                            :network-stream (funcall (if ssl
-                                                                         #'cl-async-ssl:tcp-ssl-connect
-                                                                         #'cl-async:tcp-connect)
-                                                                     server port
-                                                                     #'connection-socket-read
-                                                                     #'connection-socket-event
-                                                                     :stream t)
-                                            :client-stream t
-                                            :server-name server)))
-    ;; Register the connection
-    (setf (gethash (irc:network-stream connection) *stream->connection*)
-          connection)
+  (let* ((connection (make-instance 'irc:connection
+                                    :user username
+                                    :password password
+                                    :server-name server
+                                    :server-port port
+                                    :client-stream t))
+         ;; Use as:tcp-connect to build our network stream, and build a
+         ;; closure calling `connection-socket-read' with our `connection'
+         ;; as arguments
+         (network-stream
+           (funcall (if ssl
+                        #'cl-async-ssl:tcp-ssl-connect
+                        #'as:tcp-connect)
+                    server port
+                    (lambda (socket stream)
+                      (declare (ignore socket stream))
+                      (connection-socket-read connection))
+                    #'connection-socket-event
+                    :stream t)))
+    ;; Set the network stream on the connection
+    (setf (irc:network-stream connection) network-stream)
+    ;; Set the output stream on the connection
+    (setf (irc:output-stream connection)
+         ;; This is grabbed from cl-irc:make-connection
+          (flexi-streams:make-flexi-stream
+           network-stream
+           :element-type 'character
+           :external-format '(:utf8 :eol-style :crlf)))
 
     (irc:add-default-hooks connection)
 
