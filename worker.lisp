@@ -328,7 +328,7 @@ If last is not nil, put the hook in the last run ones."
 (defun worker-event-loop ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
     (postmodern:execute (format nil "LISTEN channel_~a"(connection-id connection)))
-    (as::listen-to-fd
+    (as:fd-add
      (get-socket-fd
       (cl-postgres::connection-socket postmodern:*database*))
      :read-cb (lambda () (notification-handler connection))
