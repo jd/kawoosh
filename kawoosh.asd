@@ -9,7 +9,6 @@
                #:simple-date
                #:clack
                #:clack-app-route
-               #:bordeaux-threads
                #:cl-json
                #:usocket)
   :components
