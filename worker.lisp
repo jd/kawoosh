@@ -228,7 +228,6 @@ If last is not nil, put the hook in the last run ones."
       (setf (channel-topic-time channel) (irc-message-received-timestamp msg))
       (postmodern:update-dao channel))))
 
-;; XXX move to util
 (defun unix-time->timestamp (unix-time)
   (simple-date:universal-time-to-timestamp
    (local-time:timestamp-to-universal
