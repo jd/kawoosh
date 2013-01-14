@@ -1,6 +1,7 @@
 (defpackage kawoosh.worker
   (:use cl
-        kawoosh.dao)
+        kawoosh.dao
+        kawoosh.util)
   (:export start))
 
 (in-package :kawoosh.worker)
@@ -10,7 +11,7 @@
         while message
         do (irc:irc-message-event connection message)))
 
-(defun connection-socket-event (ev)
+(defun async-event (ev)
   (format t "Socket event: ~a~%" ev))
 
 (defun connection-connect (server port nickname
@@ -37,7 +38,7 @@
                     (lambda (socket stream)
                       (declare (ignore socket stream))
                       (connection-socket-read connection))
-                    #'connection-socket-event
+                    #'async-event
                     :stream t)))
     ;; Set the network stream on the connection
     (setf (irc:network-stream connection) network-stream)
@@ -317,37 +318,24 @@ If last is not nil, put the hook in the last run ones."
                          (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC")
                          #'connection-log-msg)))
 
-
-(defvar *notification-lock* (bt:make-lock "notifications"))
-(defvar *notifications* nil)
-
-(defun connection-listen (connection)
-  (postmodern:execute (concatenate 'string "LISTEN channel_" (write-to-string (connection-id connection))))
-  (loop for (channel payload pid) = (multiple-value-list
-                                     (cl-postgres:wait-for-notification postmodern:*database*))
-        do (bt:with-lock-held (*notification-lock*)
-             ;; XXX Don't push if already there
-             (pushnew (list channel payload) *notifications*
-                      :test #'equal))))
-
-(defun notification-handler (connection)
-  (bt:with-lock-held (*notification-lock*)
-    (loop for (channel payload) in *notifications*
-          do (connection-update-channels connection))
-    (setq *notifications* nil))
-  (as:delay
-   (lambda () (notification-handler connection))
-   :time 1))
+(defun notification-handler (database connection)
+  (format t "NOTIF ~a~%"
+            (cl-postgres:wait-for-notification database)))
+  ;; (destructuring-bind (channel payload pid)
+  ;;     (cl-postgres:wait-for-notification postmodern:*database*)
+  ;;   (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)))
 
 (defun worker-event-loop ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
-    ;; (bt:make-thread (lambda ()
-    ;;                   (let ((postmodern:*database*
-    ;;                           (postmodern:connect "kawoosh" "kawoosh" "kawoosh" "localhost")))
-    ;;                     (postmodern:execute "SET TIMEZONE='UTC'")
-    ;;                     (connection-listen connection))
-    ;;                   :name "connection-listen"))
-    (notification-handler connection)
+    (let ((postmodern:*database*
+            (postmodern:connect "kawoosh" "kawoosh" "kawoosh" "localhost")))
+      (postmodern:execute (format nil "LISTEN channel_~a"(connection-id connection)))
+      (as::listen-to-fd
+       (get-socket-fd
+        (cl-postgres::connection-socket postmodern:*database*))
+       :read-cb (eval `(lambda ()
+                         (notification-handler ,postmodern:*database* ,connection)))
+       :event-cb #'async-event))
     (connection-run connection)))
 
 (defun start ()

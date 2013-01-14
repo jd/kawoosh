@@ -10,8 +10,10 @@
                #:clack
                #:clack-app-route
                #:bordeaux-threads
-               #:cl-json)
+               #:cl-json
+               #:usocket)
   :components
   ((:file "dao")
+   (:file "util")
    (:file "httpd" :depends-on ("dao"))
-   (:file "worker" :depends-on ("dao"))))
+   (:file "worker" :depends-on ("util" "dao"))))
