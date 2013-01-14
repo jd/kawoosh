@@ -15,14 +15,10 @@
        (getf ,env :route.parameters)
      ,@body))
 
-(defun index (env)
-  '(200
-    (:content-type "text/plain")
-    ("Hello world!")))
-
 ;; TODO Limit to admin
 ;; TODO paginate?
 (defun user-list (env)
+  (format t "~a ~%" postmodern:*database*)
   `(200
     (:content-type "application/json")
     (,(encode-json-to-string (select-dao 'user)))))
@@ -77,15 +73,13 @@
             (,(encode-json-to-string '((status . "Not Found")
                                        (message . "No such connection")))))))))
 
-
 (defroutes app
- (GET "/" #'index)
- (GET "/user" #'user-list)
- (GET "/user/:name" #'user-get)
- (GET "/server" #'server-list)
- (GET "/server/:name" #'server-get)
- (GET "/user/:username/connection" #'connection-list)
- (GET "/user/:username/connection/:server" #'connection-get))
+  (GET "/user" #'user-list)
+  (GET "/user/:name" #'user-get)
+  (GET "/server" #'server-list)
+  (GET "/server/:name" #'server-get)
+  (GET "/user/:username/connection" #'connection-list)
+  (GET "/user/:username/connection/:server" #'connection-get))
 
 (defun start ()
   (clackup #'app))

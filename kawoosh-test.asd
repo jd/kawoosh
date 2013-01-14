@@ -11,7 +11,5 @@
                #:drakma
                #:flexi-streams)
   :components
-  ((:file "dao")
-   (:file "httpd" :depends-on ("dao"))
-   (:module test
+  ((:module test
     :components ((:file "httpd")))))

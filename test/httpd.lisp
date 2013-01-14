@@ -5,6 +5,7 @@
         drakma
         kawoosh.httpd
         cl-test-more))
+
 (in-package :kawoosh.test.httpd)
 
 ;; TODO move to util
@@ -99,15 +100,15 @@
     (is (assoc :connected s) '(:connected . nil) "Server MOTD"))
   (is (cdr (assoc :content-type headers)) "application/json"))
 
-
 ;; Really run the tests now
-(test-app
- #'app
- (lambda ()
-   (loop for test in (reverse *tests*)
-         do (multiple-value-bind (body status headers)
-                (http-request (first test))
-              (declare (special body status headers))
-              (diag (second test))
-              (dolist (test-body (third test))
-                (eval test-body))))))
+(define-app-test
+    httpd
+  #'app
+  (lambda ()
+    (loop for test in (reverse *tests*)
+          do (multiple-value-bind (body status headers)
+                 (http-request (first test))
+               (declare (special body status headers))
+               (diag (second test))
+               (dolist (test-body (third test))
+                 (eval test-body))))))
