@@ -318,24 +318,21 @@ If last is not nil, put the hook in the last run ones."
                          (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC")
                          #'connection-log-msg)))
 
-(defun notification-handler (database connection)
-  (format t "NOTIF ~a~%"
-            (cl-postgres:wait-for-notification database)))
-  ;; (destructuring-bind (channel payload pid)
-  ;;     (cl-postgres:wait-for-notification postmodern:*database*)
-  ;;   (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)))
+(defun notification-handler (connection)
+  (multiple-value-bind (channel payload pid)
+      (cl-postgres:wait-for-notification postmodern:*database*)
+      ;; XXX Ignore pid == self.pid
+    (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)
+    (connection-update-channels connection)))
 
 (defun worker-event-loop ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
-    (let ((postmodern:*database*
-            (postmodern:connect "kawoosh" "kawoosh" "kawoosh" "localhost")))
-      (postmodern:execute (format nil "LISTEN channel_~a"(connection-id connection)))
-      (as::listen-to-fd
-       (get-socket-fd
-        (cl-postgres::connection-socket postmodern:*database*))
-       :read-cb (eval `(lambda ()
-                         (notification-handler ,postmodern:*database* ,connection)))
-       :event-cb #'async-event))
+    (postmodern:execute (format nil "LISTEN channel_~a"(connection-id connection)))
+    (as::listen-to-fd
+     (get-socket-fd
+      (cl-postgres::connection-socket postmodern:*database*))
+     :read-cb (lambda () (notification-handler connection))
+     :event-cb #'async-event)
     (connection-run connection)))
 
 (defun start ()
