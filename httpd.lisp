@@ -73,13 +73,24 @@
             (,(encode-json-to-string '((status . "Not Found")
                                        (message . "No such connection")))))))))
 
+;; TODO paginate?
+(defun channel-list (env)
+  (with-parameters env (username server)
+  `(200
+    (:content-type "application/json")
+    (,(encode-json-to-string (select-dao 'channel (:= 'connection
+                                                      (:select 'id :from 'connection
+                                                       :where (:and (:= 'username username)
+                                                                    (:= 'server server))))))))))
+
 (defroutes app
   (GET "/user" #'user-list)
   (GET "/user/:name" #'user-get)
   (GET "/server" #'server-list)
   (GET "/server/:name" #'server-get)
   (GET "/user/:username/connection" #'connection-list)
-  (GET "/user/:username/connection/:server" #'connection-get))
+  (GET "/user/:username/connection/:server" #'connection-get)
+  (GET "/user/:username/connection/:server/channel" #'channel-list))
 
 (defun start ()
   (clackup #'app))

@@ -40,7 +40,8 @@
 
 (defvar *dao-json-filter*
   '((kawoosh.dao:user password)
-    (kawoosh.dao:connection id))
+    (kawoosh.dao:connection id)
+    (kawoosh.dao:channel id connection))
   "Fields to not export when dumping a DAO object to JSON.")
 
 (defmethod encode-json ((o dao-object)
