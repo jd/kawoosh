@@ -18,7 +18,6 @@
 ;; TODO Limit to admin
 ;; TODO paginate?
 (defun user-list (env)
-  (format t "~a ~%" postmodern:*database*)
   `(200
     (:content-type "application/json")
     (,(encode-json-to-string (select-dao 'user)))))
