@@ -12,7 +12,7 @@
 (defun decode-json-body (body)
   (decode-json-from-string (flex:octets-to-string body)))
 
-(plan 39)
+(plan 48)
 
 (defvar *tests* nil
   "Test list.")
@@ -100,18 +100,27 @@
     (is (assoc :connected s) '(:connected . nil) "Server MOTD"))
   (is (cdr (assoc :content-type headers)) "application/json"))
 
+(defvar channel-keys
+  '(:name :password :modes :names :topic
+    :topic--who :topic--time :creation--time))
+
 (do-test "http://localhost:4242/user/jd/connection/Naquadah/channel"
   "Testing channel listing"
   (is status 200 "Status code 200")
   (let* ((data (decode-json-body (symbol-value 'body)))
          (c (car (decode-json-body (symbol-value 'body)))))
     (is (length data) 2 "Number of channels")
-    (is (set-exclusive-or (mapcar 'car c)
-                          '(:name :password :modes :names :topic
-                            :topic--who :topic--time :creation--time))
-        nil
-        "Channel keys"))
+    (is (set-exclusive-or (mapcar 'car c) channel-keys) nil "Channel keys")
+    (is (cdr (assoc :name c)) "#test" "Channel name"))
   (is (cdr (assoc :content-type headers)) "application/json") "Content-type is JSON")
+
+(do-test "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test"
+  "Testing channel retrieval"
+  (is status 200 "Status code 200")
+  (let ((c (decode-json-body (symbol-value 'body))))
+    (is (set-exclusive-or (mapcar 'car c) channel-keys) nil "Connection keys")
+    (is (cdr (assoc :name c)) "#test" "Channel name"))
+  (is (cdr (assoc :content-type headers)) "application/json") "Content type)
 
 ;; Really run the tests now
 (define-app-test

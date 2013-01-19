@@ -82,6 +82,23 @@
                                                        :where (:and (:= 'username username)
                                                                     (:= 'server server))))))))))
 
+;; TODO paginate?
+(defun channel-get (env)
+  (with-parameters env (username server channel)
+    (let ((channel (car (select-dao 'channel (:and (:= 'connection
+                                                       (:select 'id :from 'connection
+                                                        :where (:and (:= 'username username)
+                                                                     (:= 'server server))))
+                                                   (:= 'name channel))))))
+      (if channel
+          `(200
+            (:content-type "application/json")
+            (,(encode-json-to-string channel)))
+          `(404
+            (:content-type "application/json")
+            (,(encode-json-to-string '((status . "Not Found")
+                                       (message . "No such connection")))))))))
+
 (defroutes app
   (GET "/user" #'user-list)
   (GET "/user/:name" #'user-get)
@@ -89,7 +106,8 @@
   (GET "/server/:name" #'server-get)
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
-  (GET "/user/:username/connection/:server/channel" #'channel-list))
+  (GET "/user/:username/connection/:server/channel" #'channel-list)
+  (GET "/user/:username/connection/:server/channel/:channel" #'channel-get))
 
 (defun start ()
   (clackup #'app))
