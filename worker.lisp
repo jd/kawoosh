@@ -69,25 +69,6 @@
           (irc:username user)
           (irc:hostname user)))
 
-(defun connection-update-channels (connection)
-  ;; Check that connection has been set (= connected) otherwise don't do anything.
-    (let* ((network-connection (connection-network-connection connection))
-           (wanted-channels (postmodern:select-dao 'channel (:= 'connection (connection-id connection))))
-           (wanted-channels-name (mapcar #'channel-name wanted-channels)))
-      ;; PART channels not in the table anymore
-      (loop for channel-name being the hash-keys of (irc:channels network-connection)
-            unless (find channel-name wanted-channels-name :test #'string=)
-              do (irc:part network-connection channel-name))
-      ;; JOIN new channels
-      (loop for channel in wanted-channels
-            do (irc:join network-connection
-                            (channel-name channel)
-                            :password (channel-password channel))
-               ;; Send an empty mode command to retrieve channel mode and
-               ;; eventually creation time
-            do (irc:mode network-connection
-                            (channel-name channel)))))
-
 (defun connection-add-hook (connection msgclass hook &optional last)
   "Add a server hook for msgclass.
 If last is not nil, put the hook in the last run ones."
@@ -116,7 +97,17 @@ If last is not nil, put the hook in the last run ones."
     (setf (connection-current-nickname connection) nickname))
   (setf (connection-connected-p connection) t)
   (postmodern:update-dao connection)
-  (connection-update-channels connection))
+
+  ;; Join channels
+  (let ((network-connection (connection-network-connection connection)))
+    (loop for channel in (postmodern:select-dao 'channel (:= 'connection (connection-id connection)))
+          do (irc:join network-connection
+                       (channel-name channel)
+                       :password (channel-password channel))
+             ;; Send an empty mode command to retrieve channel mode and
+             ;; eventually creation time
+          do (irc:mode network-connection
+                       (channel-name channel)))))
 
 (defun connection-handle-rpl_motd (connection msg)
   (destructuring-bind (target text) (irc:arguments msg)
@@ -176,15 +167,20 @@ If last is not nil, put the hook in the last run ones."
                                              (:= 'connection (connection-id connection))))))
 
 (defun connection-handle-join (connection msg)
-  (unless (irc:self-message-p msg)
-    (destructuring-bind (channel-name) (irc:arguments msg)
-      (channel-update-names connection (channel-find connection channel-name)))))
+  (destructuring-bind (channel-name) (irc:arguments msg)
+    (if (irc:self-message-p msg)
+        (unless (channel-find connection channel-name)
+          (make-dao 'channel :name channel-name ))
+        (channel-update-names connection (channel-find connection channel-name)))))
 
 (defun connection-handle-part (connection msg)
-  (unless (irc:self-message-p msg)
-    (destructuring-bind (channel-name &optional text) (irc:arguments msg)
-      (declare (ignore text))
-      (channel-update-names connection (channel-find connection channel-name)))))
+  (destructuring-bind (channel-name &optional text) (irc:arguments msg)
+    (declare (ignore text))
+    (if (irc:self-message-p msg)
+        (let ((channel (channel-find connection channel-name)))
+          (when channel
+            (delete-dao channel)))
+        (channel-update-names connection (channel-find connection channel-name)))))
 
 (defun connection-handle-quit (connection msg)
   (declare (ignore msg))
@@ -321,8 +317,7 @@ If last is not nil, put the hook in the last run ones."
   (multiple-value-bind (channel payload pid)
       (cl-postgres:wait-for-notification postmodern:*database*)
       ;; XXX Ignore pid == self.pid
-    (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)
-    (connection-update-channels connection)))
+    (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)))
 
 (defun worker-event-loop ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
