@@ -5,6 +5,10 @@
         postmodern
         clack.app.route
         json)
+  (:shadowing-import-from
+   :kawoosh.dao :server-port)
+  (:shadowing-import-from
+   :kawoosh.dao :server-name)
   (:export start
            app))
 
@@ -58,7 +62,6 @@
     (:content-type "application/json")
     (,(encode-json-to-string (select-dao 'connection (:= 'username username)))))))
 
-
 (defun connection-get (env)
   (with-parameters env (username server)
     (let ((connection (car (select-dao 'connection (:and (:= 'username username)
@@ -81,6 +84,25 @@
                                                       (:select 'id :from 'connection
                                                        :where (:and (:= 'username username)
                                                                     (:= 'server server))))))))))
+
+;; XXX check content-type?
+(defun channel-join (env)
+  (with-parameters env (username server channel)
+    ;; XXX retrieve only id from connection
+    (let* ((connection (car (select-dao 'connection
+                                        (:and (:= 'username username)
+                                              (:= 'server server)))))
+           (password (cdr (assoc :password (decode-json (getf env :raw-body))))))
+      (execute (format nil "NOTIFY connection_~a, 'JOIN ~a~a'"
+                       (connection-id connection)
+                       channel
+                       (if password
+                           (format nil " ~a" password)
+                           ""))))
+    `(200
+      (:content-type "application/json")
+      (,(encode-json-to-string `((status . "OK")
+                                 (message . ,(format nil "Joining channel ~a" channel))))))))
 
 ;; TODO paginate?
 (defun channel-get (env)
@@ -107,6 +129,7 @@
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
   (GET "/user/:username/connection/:server/channel" #'channel-list)
+  (POST "/user/:username/connection/:server/channel/:channel" #'channel-join)
   (GET "/user/:username/connection/:server/channel/:channel" #'channel-get))
 
 (defun start ()

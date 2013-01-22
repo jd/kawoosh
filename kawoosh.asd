@@ -10,6 +10,7 @@
                #:clack
                #:clack-app-route
                #:cl-json
+               #:split-sequence
                #:usocket)
   :components
   ((:file "dao")

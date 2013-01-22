@@ -27,6 +27,7 @@ CREATE TABLE channels (
 	id serial PRIMARY KEY,
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
 	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\x07\x13\x10]'),
+        -- XXX update password when modes is updated for password
 	password text,
         names text[],
         modes text[],

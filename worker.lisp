@@ -1,5 +1,8 @@
 (defpackage kawoosh.worker
   (:use cl
+        alexandria
+        split-sequence
+        postmodern
         kawoosh.dao
         kawoosh.util)
   (:export start))
@@ -170,7 +173,7 @@ If last is not nil, put the hook in the last run ones."
   (destructuring-bind (channel-name) (irc:arguments msg)
     (if (irc:self-message-p msg)
         (unless (channel-find connection channel-name)
-          (make-dao 'channel :name channel-name ))
+          (make-dao 'channel :connection (connection-id connection) :name channel-name))
         (channel-update-names connection (channel-find connection channel-name)))))
 
 (defun connection-handle-part (connection msg)
@@ -316,12 +319,20 @@ If last is not nil, put the hook in the last run ones."
 (defun notification-handler (connection)
   (multiple-value-bind (channel payload pid)
       (cl-postgres:wait-for-notification postmodern:*database*)
-      ;; XXX Ignore pid == self.pid
-    (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)))
+    (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)
+    ;; XXX Ignore pid == self.pid
+    (destructuring-bind (command &rest args)
+        (split-sequence #\Space payload)
+      ;; (format t "command ~a ~a ~a~%" command (eq 'kawoosh.worker:join (intern command)) args)
+      (switch (command :test #'string=)
+        ("JOIN"
+         (irc:join (connection-network-connection connection)
+                   (nth 0 args)
+                   :password (nth 1 args)))))))
 
 (defun worker-event-loop ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
-    (postmodern:execute (format nil "LISTEN channel_~a"(connection-id connection)))
+    (postmodern:execute (format nil "LISTEN connection_~a"(connection-id connection)))
     (as:fd-add
      (get-socket-fd
       (cl-postgres::connection-socket postmodern:*database*))

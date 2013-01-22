@@ -86,8 +86,8 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
 (defclass channel (dao-object)
   ((id :col-type serial :reader channel-id)
-   (connection :col-type serial :accessor channel-connection)
-   (name :col-type text :accessor channel-name)
+   (connection :col-type serial :initarg :connection :accessor channel-connection)
+   (name :col-type text :initarg :name :accessor channel-name)
    (password :col-type text :accessor channel-password)
    (names :col-type text[] :accessor channel-names)
    (modes :col-type text[] :accessor channel-modes)
