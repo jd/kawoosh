@@ -116,6 +116,12 @@
     (is (cdr (assoc :name c)) "#test" "Channel name"))
   (is (cdr (assoc :content-type headers)) "application/json" "Content type is JSON"))
 
+(do-test (:put "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
+  "Testing channel creation"
+  (is status 200 "Status code 200")
+  (is (decode-json-body (symbol-value 'body)) '((:status . "OK") (:message . "Joining channel #test")))
+  (is (cdr (assoc :content-type headers)) "application/json" "Content type is JSON"))
+
 ;; Really run the tests now
 (define-app-test
     httpd
@@ -123,7 +129,12 @@
   (lambda ()
     (loop for test in (reverse *tests*)
           do (multiple-value-bind (body status headers)
-                 (http-request (first test))
+                 (let ((req (first test)))
+                   (if (listp req)
+                       (http-request (cadr req)
+                                     :method (car req)
+                                     :content (caddr req))
+                       (http-request req)))
                (declare (special body status headers))
                (diag (second test))
                (dolist (test-body (third test))

@@ -129,7 +129,7 @@
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
   (GET "/user/:username/connection/:server/channel" #'channel-list)
-  (POST "/user/:username/connection/:server/channel/:channel" #'channel-join)
+  (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join)
   (GET "/user/:username/connection/:server/channel/:channel" #'channel-get))
 
 (defun start ()
