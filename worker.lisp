@@ -328,7 +328,11 @@ If last is not nil, put the hook in the last run ones."
         ("JOIN"
          (irc:join (connection-network-connection connection)
                    (nth 0 args)
-                   :password (nth 1 args)))))))
+                   :password (nth 1 args)))
+        ("PART"
+         (irc:part (connection-network-connection connection)
+                   (nth 0 args)
+                   (nth 1 args)))))))
 
 (defun worker-event-loop ()
   (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))

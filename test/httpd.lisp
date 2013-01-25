@@ -12,7 +12,7 @@
 (defun decode-json-body (body)
   (decode-json-from-string (flex:octets-to-string body)))
 
-(plan 42)
+(plan 54)
 
 (defvar *tests* nil
   "Test list.")
@@ -118,9 +118,32 @@
 
 (do-test (:put "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
   "Testing channel creation"
-  (is status 200 "Status code 200")
-  (is (decode-json-body (symbol-value 'body)) '((:status . "OK") (:message . "Joining channel #test")))
+  (is status 202 "Status code")
+  (is (decode-json-body (symbol-value 'body)) '((:status . "OK") (:message . "Joining channel #test"))
+      "Message")
   (is (cdr (assoc :content-type headers)) "application/json" "Content type is JSON"))
+
+(do-test (:put "http://localhost:4242/user/jd/connection/NoConnection/channel/%23test" "{}")
+  "Testing channel creation on non existent connection"
+  (is status 404 "Status code")
+  (is (decode-json-body (symbol-value 'body)) '((:status . "Not Found") (:message . "No such connection"))
+      "Error message")
+  (is (cdr (assoc :content-type headers)) "application/json" "Content type is JSON"))
+
+(do-test (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
+  "Testing channel deletion"
+  (is status 202 "Status code")
+  (is (decode-json-body (symbol-value 'body)) '((:status . "OK") (:message . "Parting channel #test"))
+      "Message")
+  (is (cdr (assoc :content-type headers)) "application/json" "Content-type"))
+
+(do-test (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/foobar" "{}")
+  "Testing non existent channel deletion"
+  (is status 404 "Status code")
+  (is (decode-json-body (symbol-value 'body)) '((:status . "Not Found") (:message . "Channel foobar not joined"))
+      "Error message")
+  (is (cdr (assoc :content-type headers)) "application/json" "Content-type"))
+
 
 ;; Really run the tests now
 (define-app-test

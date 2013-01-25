@@ -14,6 +14,16 @@
 
 (in-package :kawoosh.httpd)
 
+(defgeneric rpc-send (connection command &rest args))
+
+(defmethod rpc-send ((connection connection) command &rest args)
+  (apply 'rpc-send (connection-id connection) command args))
+
+(defmethod rpc-send ((connection-id integer) command &rest args)
+  (execute (format nil "NOTIFY connection_~a, '~a ~{~@[~a~^ ~]~}'"
+                   connection-id
+                   (symbol-name command) args)))
+
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)
        (getf ,env :route.parameters)
@@ -89,20 +99,43 @@
 (defun channel-join (env)
   (with-parameters env (username server channel)
     ;; XXX retrieve only id from connection
-    (let* ((connection (car (select-dao 'connection
-                                        (:and (:= 'username username)
-                                              (:= 'server server)))))
-           (password (cdr (assoc :password (decode-json (getf env :raw-body))))))
-      (execute (format nil "NOTIFY connection_~a, 'JOIN ~a~a'"
-                       (connection-id connection)
-                       channel
-                       (if password
-                           (format nil " ~a" password)
-                           ""))))
-    `(200
-      (:content-type "application/json")
-      (,(encode-json-to-string `((status . "OK")
-                                 (message . ,(format nil "Joining channel ~a" channel))))))))
+    (let ((connection (car (select-dao 'connection
+                                       (:and (:= 'username username)
+                                             (:= 'server server))))))
+      (if connection
+          (progn
+            (rpc-send connection 'join channel
+                      (cdr (assoc :password (decode-json (getf env :raw-body)))))
+            `(202
+              (:content-type "application/json")
+              (,(encode-json-to-string `((status . "OK")
+                                         (message . ,(format nil "Joining channel ~a" channel)))))))
+          `(404
+            (:content-type "application/json")
+            (,(encode-json-to-string '((status . "Not Found")
+                                       (message . "No such connection")))))))))
+
+;; XXX check content-type?
+(defun channel-part (env)
+  (with-parameters env (username server channel)
+    ;; XXX retrieve only id from connection
+    (let ((channel-dao (car (select-dao 'channel (:and (:= 'connection
+                                                           (:select 'id :from 'connection
+                                                            :where (:and (:= 'username username)
+                                                                         (:= 'server server))))
+                                                       (:= 'name channel))))))
+      (if channel-dao
+          (progn
+            (rpc-send (channel-connection channel-dao) 'part channel
+                      (cdr (assoc :reason (decode-json (getf env :raw-body)))))
+            `(202
+              (:content-type "application/json")
+              (,(encode-json-to-string `((status . "OK")
+                                         (message . ,(format nil "Parting channel ~a" channel)))))))
+          `(404
+            (:content-type "application/json")
+            (,(encode-json-to-string `((status . "Not Found")
+                                       (message . ,(format nil "Channel ~a not joined" channel))))))))))
 
 ;; TODO paginate?
 (defun channel-get (env)
@@ -130,6 +163,7 @@
   (GET "/user/:username/connection/:server" #'connection-get)
   (GET "/user/:username/connection/:server/channel" #'channel-list)
   (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join)
+  (DELETE "/user/:username/connection/:server/channel/:channel" #'channel-part)
   (GET "/user/:username/connection/:server/channel/:channel" #'channel-get))
 
 (defun start ()
