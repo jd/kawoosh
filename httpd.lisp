@@ -4,6 +4,7 @@
         clack
         postmodern
         clack.app.route
+        clack.request
         json)
   (:shadowing-import-from
    :kawoosh.dao :server-port)
@@ -28,6 +29,8 @@
   `(destructuring-bind (&key ,@keys)
        (getf ,env :route.parameters)
      ,@body))
+
+(defconstant *limit-default* 100)
 
 ;; TODO Limit to admin
 ;; TODO paginate?
@@ -152,7 +155,33 @@
           `(404
             (:content-type "application/json")
             (,(encode-json-to-string '((status . "Not Found")
-                                       (message . "No such connection")))))))))
+                                       (message . "No such channel/connection")))))))))
+
+;; TODO paginate?
+;; TODO ?from=<timestamp>
+;; TODO limit select fields
+(defun channel-get-messages (env)
+  (with-parameters env (username server channel)
+    (let ((logs (query-dao 'log-entry
+                           (:limit
+                            (:select 'time 'source 'command 'target 'payload
+                             :from (dao-table-name (find-class 'log-entry))
+                             :where (:and (:= 'connection
+                                              (:select 'id :from 'connection
+                                               :where (:and (:= 'username username)
+                                                            (:= 'server server))))
+                                          (:= 'target channel)))
+                            (or (query-parameter (make-request env) "limit")
+                                *limit-default*)))))
+      (if logs
+          `(200
+            (:content-type "application/json")
+            (,(encode-json-to-string logs)))
+          `(404
+            (:content-type "application/json")
+            (,(encode-json-to-string '((status . "Not Found")
+                                       (message . "No such channel/connection")))))))))
+
 
 (defroutes app
   (GET "/user" #'user-list)
@@ -162,9 +191,14 @@
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
   (GET "/user/:username/connection/:server/channel" #'channel-list)
+
+  (GET "/user/:username/connection/:server/channel/:channel" #'channel-get)
   (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join)
   (DELETE "/user/:username/connection/:server/channel/:channel" #'channel-part)
-  (GET "/user/:username/connection/:server/channel/:channel" #'channel-get))
+
+  (GET "/user/:username/connection/:server/channel/:channel/messages" #'channel-get-messages)
+  ;; (POST "/user/:username/connection/:server/channel/:channel/messages" #'channel-send-message)
+  )
 
 (defun start ()
   (clackup #'app))

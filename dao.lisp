@@ -7,6 +7,7 @@
            server
            connection
            channel
+           log-entry
            password
            id
            user-name
@@ -41,7 +42,8 @@
 (defvar *dao-json-filter*
   '((kawoosh.dao:user password)
     (kawoosh.dao:connection id)
-    (kawoosh.dao:channel id connection))
+    (kawoosh.dao:channel id connection)
+    (kawoosh.dao:log-entry id connection))
   "Fields to not export when dumping a DAO object to JSON.")
 
 (defmethod encode-json ((o dao-object)
@@ -97,4 +99,16 @@ O to STREAM (or to *JSON-OUTPUT*)."
    (creation_time :col-type timestamp :accessor channel-creation-time))
   (:metaclass postmodern:dao-class)
   (:table-name channels)
+  (:keys id))
+
+(defclass log-entry (dao-object)
+  ((id :col-type serial :reader log-id)
+   (connection :col-type serial :initarg :connection :accessor log-connection)
+   (time :col-type timestamp :initarg :time :accessor log-time)
+   (source :col-type text :initarg :source :access log-source)
+   (command :col-type text :initarg :command :access log-command)
+   (target :col-type text :initarg :target :access log-target)
+   (payload :col-type text :initarg :payload :access log-payload))
+  (:metaclass dao-class)
+  (:table-name logs)
   (:keys id))
