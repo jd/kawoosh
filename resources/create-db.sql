@@ -45,7 +45,7 @@ CREATE TABLE logs (
 	source text NOT NULL,
 	command text NOT NULL,
 	target text NOT NULL,
-	payload text NOT NULL
+	payload text
 );
 
 
