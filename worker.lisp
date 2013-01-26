@@ -91,7 +91,7 @@ If last is not nil, put the hook in the last run ones."
    (irc:source msg)
    (irc:command msg)
    (car (irc:arguments msg))
-   (cadr (irc:arguments msg))))
+   (or (cadr (irc:arguments msg)) :null)))
 
 (defun connection-handle-rpl_welcome (connection msg)
   ;; This is at least needed to store and update current-nickname
