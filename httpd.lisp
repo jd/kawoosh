@@ -159,7 +159,6 @@
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
-;; TODO limit select fields
 (defun channel-get-messages (env)
   (with-parameters env (username server channel)
     (let ((logs (query-dao 'log-entry
