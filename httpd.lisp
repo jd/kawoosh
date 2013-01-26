@@ -186,18 +186,31 @@
 (defroutes app
   (GET "/user" #'user-list)
   (GET "/user/:name" #'user-get)
+
   (GET "/server" #'server-list)
   (GET "/server/:name" #'server-get)
+
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
-  (GET "/user/:username/connection/:server/channel" #'channel-list)
+  ;; (PUT "/user/:username/connection/:server" #'connection-put) ; connect (insert into connection)
+  ;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
 
+  ;; (GET "/user/:username/connection/:server/user" #'ircuser-list)
+  ;; (GET "/user/:username/connection/:server/user/:ircuser" #'ircuser-get) ; whois
+  ;; (GET "/user/:username/connection/:server/user/:ircuser/messages" #'ircuser-get-messages) ; query log
+
+  (GET "/user/:username/connection/:server/channel" #'channel-list)
   (GET "/user/:username/connection/:server/channel/:channel" #'channel-get)
-  (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join)
+  (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join) ; TODO can also change mode
   (DELETE "/user/:username/connection/:server/channel/:channel" #'channel-part)
 
   (GET "/user/:username/connection/:server/channel/:channel/messages" #'channel-get-messages)
-  ;; (POST "/user/:username/connection/:server/channel/:channel/messages" #'channel-send-message)
+  ;; (POST "/user/:username/connection/:server/channel/:channel/messages" #'channel-send-message) ; privmsg
+
+  ;; (GET "/user/:username/connection/:server/channel/:channel/users" #'channel-list-users) ; whois list
+  ;; (GET "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-get-user) ; retrieve whois
+  ;; (PUT "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-put-user) ; change mode
+  ;; (DELETE "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-delete-user) ; kick
   )
 
 (defun start ()
