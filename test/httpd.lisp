@@ -12,7 +12,7 @@
 (defun decode-json-body (body)
   (decode-json-from-string (flex:octets-to-string body)))
 
-(plan 54)
+(plan 57)
 
 (defvar *tests* nil
   "Test list.")
@@ -144,6 +144,12 @@
       "Error message")
   (is (cdr (assoc :content-type headers)) "application/json" "Content-type"))
 
+(do-test "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test/events"
+  "Message event retrieval"
+  (is status 200 "Status code")
+  (isnt (decode-json-body (symbol-value 'body)) nil
+         "Content decoding")
+  (is (cdr (assoc :content-type headers)) "application/json" "Content-type"))
 
 ;; Really run the tests now
 (define-app-test

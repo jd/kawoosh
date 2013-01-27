@@ -159,7 +159,7 @@
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
-(defun channel-get-messages (env)
+(defun channel-get-events (env)
   (with-parameters env (username server channel)
     (let ((logs (query-dao 'log-entry
                            (:limit
@@ -191,20 +191,22 @@
 
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
+  ;; (GET "/user/:username/connection/:server/events" #'connection-get-events) ; query log
   ;; (PUT "/user/:username/connection/:server" #'connection-put) ; connect (insert into connection)
   ;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
 
   ;; (GET "/user/:username/connection/:server/user" #'ircuser-list)
   ;; (GET "/user/:username/connection/:server/user/:ircuser" #'ircuser-get) ; whois
-  ;; (GET "/user/:username/connection/:server/user/:ircuser/messages" #'ircuser-get-messages) ; query log
+  ;; (GET "/user/:username/connection/:server/user/:ircuser/events" #'ircuser-get-events) ; query log
+  ;; (POST "/user/:username/connection/:server/user/:ircuser/message" #'ircuser-get-events) ; privmsg
 
   (GET "/user/:username/connection/:server/channel" #'channel-list)
   (GET "/user/:username/connection/:server/channel/:channel" #'channel-get)
   (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join) ; TODO can also change mode + topic
   (DELETE "/user/:username/connection/:server/channel/:channel" #'channel-part)
 
-  (GET "/user/:username/connection/:server/channel/:channel/messages" #'channel-get-messages)
-  ;; (POST "/user/:username/connection/:server/channel/:channel/messages" #'channel-send-message) ; privmsg
+  (GET "/user/:username/connection/:server/channel/:channel/events" #'channel-get-events)
+  ;; (POST "/user/:username/connection/:server/channel/:channel/message" #'channel-send-message) ; privmsg
 
   ;; (GET "/user/:username/connection/:server/channel/:channel/users" #'channel-list-users) ; whois list
   ;; (GET "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-get-user) ; retrieve whois
