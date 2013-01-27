@@ -200,7 +200,7 @@
 
   (GET "/user/:username/connection/:server/channel" #'channel-list)
   (GET "/user/:username/connection/:server/channel/:channel" #'channel-get)
-  (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join) ; TODO can also change mode
+  (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join) ; TODO can also change mode + topic
   (DELETE "/user/:username/connection/:server/channel/:channel" #'channel-part)
 
   (GET "/user/:username/connection/:server/channel/:channel/messages" #'channel-get-messages)
