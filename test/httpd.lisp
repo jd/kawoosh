@@ -140,7 +140,8 @@
 (do-test (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/foobar" "{}")
   "Testing non existent channel deletion"
   (is status 404 "Status code")
-  (is (decode-json-body (symbol-value 'body)) '((:status . "Not Found") (:message . "Channel foobar not joined"))
+  (is (decode-json-body (symbol-value 'body)) '((:status . "Not Found")
+                                                (:message . "No such connection or channel not joined"))
       "Error message")
   (is (cdr (assoc :content-type headers)) "application/json" "Content-type"))
 

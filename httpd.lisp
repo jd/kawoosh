@@ -32,71 +32,67 @@
 
 (defconstant *limit-default* 100)
 
+(defun http-reply (code data)
+  `(,code
+    (:content-type "application/json")
+    (,(encode-json-to-string data))))
+
+(defun success-ok (data)
+  (http-reply 200 data))
+
+(defun success-accepted (message)
+  (http-reply 202
+              `((status . "OK")
+                (message . ,message))))
+
+(defun error-not-found (message)
+  (http-reply 404
+              `((status . "Not Found")
+                (message . ,message))))
+
 ;; TODO Limit to admin
 ;; TODO paginate?
 (defun user-list (env)
-  `(200
-    (:content-type "application/json")
-    (,(encode-json-to-string (select-dao 'user)))))
+  (success-ok (select-dao 'user)))
 
 (defun user-get (env)
   (with-parameters env (name)
     (let ((user (car (select-dao 'user (:= 'name name)))))
       (if user
-          `(200
-            (:content-type "application/json")
-            (,(encode-json-to-string user)))
-          `(404
-            (:content-type "application/json")
-            (,(encode-json-to-string '((status . "Not Found")
-                                       (message . "No such user")))))))))
+          (success-ok user)
+          (error-not-found "No such user")))))
+
 ;; TODO paginate?
 (defun server-list (env)
-  `(200
-    (:content-type "application/json")
-    (,(encode-json-to-string (select-dao 'server)))))
+  (success-ok (select-dao 'server)))
 
 (defun server-get (env)
   (with-parameters env (name)
     (let ((server (car (select-dao 'server (:= 'name name)))))
       (if server
-          `(200
-            (:content-type "application/json")
-            (,(encode-json-to-string server)))
-          `(404
-            (:content-type "application/json")
-            (,(encode-json-to-string '((status . "Not Found")
-                                       (message . "No such server")))))))))
+          (success-ok server)
+          (error-not-found "No such server")))))
 
 ;; TODO paginate?
 (defun connection-list (env)
   (with-parameters env (username)
-  `(200
-    (:content-type "application/json")
-    (,(encode-json-to-string (select-dao 'connection (:= 'username username)))))))
+    (success-ok (select-dao 'connection (:= 'username username)))))
 
 (defun connection-get (env)
   (with-parameters env (username server)
     (let ((connection (car (select-dao 'connection (:and (:= 'username username)
                                                          (:= 'server server))))))
       (if connection
-          `(200
-            (:content-type "application/json")
-            (,(encode-json-to-string connection)))
-          `(404
-            (:content-type "application/json")
-            (,(encode-json-to-string '((status . "Not Found")
-                                       (message . "No such connection")))))))))
+          (success-ok connection)
+          (error-not-found "No such connection")))))
 
 ;; TODO paginate?
 (defun channel-list (env)
   (with-parameters env (username server)
-  `(200
-    (:content-type "application/json")
-    (,(encode-json-to-string (select-dao 'channel (:= 'connection
-                                                      (:select 'id :from 'connection
-                                                       :where (:and (:= 'username username)
-                                                                    (:= 'server server))))))))))
+    (success-ok (select-dao 'channel (:= 'connection
+                                        (:select 'id :from 'connection
+                                         :where (:and (:= 'username username)
+                                                      (:= 'server server))))))))
 
 ;; XXX check content-type?
 (defun channel-join (env)
@@ -109,14 +105,8 @@
           (progn
             (rpc-send connection 'join channel
                       (cdr (assoc :password (decode-json (getf env :raw-body)))))
-            `(202
-              (:content-type "application/json")
-              (,(encode-json-to-string `((status . "OK")
-                                         (message . ,(format nil "Joining channel ~a" channel)))))))
-          `(404
-            (:content-type "application/json")
-            (,(encode-json-to-string '((status . "Not Found")
-                                       (message . "No such connection")))))))))
+            (success-accepted (format nil "Joining channel ~a" channel)))
+          (error-not-found "No such connection")))))
 
 ;; XXX check content-type?
 (defun channel-part (env)
@@ -131,14 +121,8 @@
           (progn
             (rpc-send (channel-connection channel-dao) 'part channel
                       (cdr (assoc :reason (decode-json (getf env :raw-body)))))
-            `(202
-              (:content-type "application/json")
-              (,(encode-json-to-string `((status . "OK")
-                                         (message . ,(format nil "Parting channel ~a" channel)))))))
-          `(404
-            (:content-type "application/json")
-            (,(encode-json-to-string `((status . "Not Found")
-                                       (message . ,(format nil "Channel ~a not joined" channel))))))))))
+            (success-accepted (format nil "Parting channel ~a" channel)))
+          (error-not-found "No such connection or channel not joined")))))
 
 ;; TODO paginate?
 (defun channel-get (env)
@@ -149,13 +133,8 @@
                                                                      (:= 'server server))))
                                                    (:= 'name channel))))))
       (if channel
-          `(200
-            (:content-type "application/json")
-            (,(encode-json-to-string channel)))
-          `(404
-            (:content-type "application/json")
-            (,(encode-json-to-string '((status . "Not Found")
-                                       (message . "No such channel/connection")))))))))
+          (success-ok channel)
+          (error-not-found "No such connection or channel")))))
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
@@ -173,14 +152,8 @@
                             (or (query-parameter (make-request env) "limit")
                                 *limit-default*)))))
       (if logs
-          `(200
-            (:content-type "application/json")
-            (,(encode-json-to-string logs)))
-          `(404
-            (:content-type "application/json")
-            (,(encode-json-to-string '((status . "Not Found")
-                                       (message . "No such channel/connection")))))))))
-
+          (success-ok logs)
+          (error-not-found "No such connection or channel")))))
 
 (defroutes app
   (GET "/user" #'user-list)
