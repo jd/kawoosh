@@ -11,5 +11,5 @@
                #:drakma
                #:flexi-streams)
   :components
-  ((:module test
+  ((:module tests
     :components ((:file "httpd")))))

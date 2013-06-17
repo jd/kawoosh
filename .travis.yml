@@ -1,0 +1,22 @@
+language: common-lisp
+install:
+  - sudo apt-get install sbcl pgtap libevent-core-2.0-5 libevent-extra-2.0-5 libevent-openssl-2.0-5
+  - wget -q http://beta.quicklisp.org/quicklisp.lisp -O ~/quicklisp.lisp
+  - mkdir -p ~/quicklisp/local-projects/
+  - git clone --depth 1 git://github.com/orthecreedence/cl-async.git ~/quicklisp/local-projects/cl-async
+  - git clone --depth 1 git://github.com/orthecreedence/cl-libevent2.git ~/quicklisp/local-projects/cl-libevent2
+  - svn checkout svn://common-lisp.net/project/cl-irc/svn/trunk ~/quicklisp/local-projects/cl-irc
+before_script:
+  - sudo -u postgres createuser -S -R -D -E -l kawoosh
+  - sudo -u postgres createdb -E UTF8 -O kawoosh -hlocalhost kawoosh
+  - psql -U kawoosh -hlocalhost -d kawoosh -f `pg_config --sharedir`/extension/pgtap--*.sql
+  - sbcl --load update-deps.lisp
+  - ln -s $TRAVIS_BUILD_DIR ~/quicklisp/local-projects/kawoosh
+script:
+  - psql -hlocalhost -U kawoosh kawoosh < resources/create-db.sql
+  - pg_prove -v -hlocalhost -Ukawoosh tests/*.sql | tee /tmp/pgprove.log
+  - "grep -q '^Result: PASS' /tmp/pgprove.log"
+  - sbcl --load run-tests.lisp
+notifications:
+  email:
+    - julien@danjou.info

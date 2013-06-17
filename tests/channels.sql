@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(6);
+SELECT plan(4);
 
 DELETE FROM users;
 
@@ -27,22 +27,6 @@ SELECT throws_ok(
        23505,
        'duplicate key value violates unique constraint "channels_connection_name_key"',
        'Non-unique channel'
-);
-
-PREPARE update_channel_name AS UPDATE channels SET name='#blabla' WHERE name='#foobar';
-SELECT throws_ok(
-       'update_channel_name',
-       'P0001',
-       'You are not allowed to modify name or connection of a channel',
-       'Update channel name'
-);
-
-PREPARE update_channel_connection AS UPDATE channels SET connection=(SELECT id FROM connection where server='Freenode');
-SELECT throws_ok(
-       'update_channel_connection',
-       'P0001',
-       'You are not allowed to modify name or connection of a channel',
-       'Update channel name'
 );
 
 UPDATE channels SET password='p4ss' WHERE name='#foobar';
