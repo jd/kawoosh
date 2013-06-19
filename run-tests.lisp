@@ -1,8 +1,8 @@
 (load (merge-pathnames "quicklisp/setup.lisp"
                        (user-homedir-pathname)))
-(print asdf:*central-registry*)
 (require 'kawoosh-test)
 (postmodern:connect-toplevel "kawoosh" "kawoosh" "kawoosh" "localhost")
 (postmodern:execute "SET TIMEZONE='UTC'")
-(cl-test-more:run-test-package 'kawoosh.test.httpd)
-(quit)
+(let ((results (5am:run 5am::*suite*)))
+  (5am:explain! results)
+  (exit :code (if (eq (5am:results-status results ) t) 0 1)))

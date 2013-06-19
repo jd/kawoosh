@@ -7,7 +7,7 @@
                #:clack-app-route
                #:postmodern
                #:cl-json
-               #:cl-test-more
+               #:fiveam
                #:drakma
                #:flexi-streams)
   :components
