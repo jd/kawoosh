@@ -4,7 +4,6 @@
 (ql:quickload 'cl-irc)
 (ql:quickload 'cl-json)
 (ql:quickload 'cl-libevent2)
-(ql:quickload 'cl-test-more)
 (ql:quickload 'clack)
 (ql:quickload 'drakma)
 (ql:quickload 'fiveam)
