@@ -49,6 +49,17 @@
   (is-equal (decode-json-body body) '((:name . "jd")))
   (is-equal (cdr (assoc :content-type headers)) "application/json"))
 
+(do-test user-event-retrieval
+  "http://localhost:4242/user/jd/events"
+  "Message event retrieval"
+  (is-equal status 200 "Status code")
+  (let* ((s (decode-json-body body))
+         (event (nth 0 s)))
+    (is-equal (length s) 1)
+    (is-equal (cdr (assoc :command event)) "PRIVMSG" "Command")
+    (is-equal (cdr (assoc :source event)) "buddyboy" "Command"))
+  (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))
+
 (do-test user-non-existent-retrieval
   "http://localhost:4242/user/foobar"
   "Testing non-existent user retrieval"
@@ -177,5 +188,9 @@
   "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test/events"
   "Message event retrieval"
   (is-equal status 200 "Status code")
-  ;; TODO tests content of events
+  (let* ((s (decode-json-body body))
+         (event (nth 0 s)))
+    (is-equal (length s) 1)
+    (is-equal (cdr (assoc :command event)) "PRIVMSG" "Command")
+    (is-equal (cdr (assoc :source event)) "buddyboy" "Command"))
   (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))

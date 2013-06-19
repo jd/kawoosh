@@ -63,6 +63,23 @@
           (error-not-found "No such user")))))
 
 ;; TODO paginate?
+;; TODO ?from=<timestamp>
+(defun user-get-events (env)
+  (with-parameters env (username)
+    (let ((logs (query-dao 'log-entry
+                           (:limit
+                            (:select 'time 'source 'command 'target 'payload
+                             :from (dao-table-name (find-class 'log-entry))
+                             :where (:in 'connection
+                                         (:select 'id :from 'connection
+                                                  :where (:= 'username username))))
+                            (or (query-parameter (make-request env) "limit")
+                                *limit-default*)))))
+      (if logs
+          (success-ok logs)
+          (error-not-found "No result")))))
+
+;; TODO paginate?
 (defun server-list (env)
   (success-ok (select-dao 'server)))
 
@@ -158,6 +175,7 @@
 (defroutes app
   (GET "/user" #'user-list)
   (GET "/user/:name" #'user-get)
+  (GET "/user/:username/events" #'user-get-events)
 
   (GET "/server" #'server-list)
   (GET "/server/:name" #'server-get)
