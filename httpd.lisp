@@ -23,8 +23,8 @@
 (defparameter *dbuser* "kawoosh"
   "Databaser user name.")
 
-  (defparameter *dbpassword* "kawoosh"
-    "Databaser password.")
+(defparameter *dbpassword* "kawoosh"
+  "Databaser password.")
 
 (defparameter *dbhost* "localhost"
   "Databaser host.")
@@ -64,127 +64,128 @@
               `((status . "Not Found")
                 (message . ,message))))
 
+(defmacro with-pg-connection (&rest body)
+  `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
+     (postmodern:execute "SET TIMEZONE='UTC'")
+     ,@body))
+
+(defmacro defrouted (name keys &rest body)
+  `(defun ,name (env)
+     (with-parameters env ,keys
+       (with-pg-connection
+         ,@body))))
+
 ;; TODO Limit to admin
 ;; TODO paginate?
-(defun user-list (env)
+(defrouted user-list ()
   (success-ok (select-dao 'user)))
 
-(defun user-get (env)
-  (with-parameters env (name)
-    (let ((user (car (select-dao 'user (:= 'name name)))))
-      (if user
-          (success-ok user)
-          (error-not-found "No such user")))))
+(defrouted user-get (name)
+  (let ((user (car (select-dao 'user (:= 'name name)))))
+    (if user
+        (success-ok user)
+        (error-not-found "No such user"))))
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
-(defun user-get-events (env)
-  (with-parameters env (username)
-    (let ((logs (query-dao 'log-entry
-                           (:limit
-                            (:select 'time 'source 'command 'target 'payload
-                             :from (dao-table-name (find-class 'log-entry))
-                             :where (:in 'connection
-                                         (:select 'id :from 'connection
-                                                  :where (:= 'username username))))
-                            (or (query-parameter (make-request env) "limit")
-                                *limit-default*)))))
-      (if logs
-          (success-ok logs)
-          (error-not-found "No result")))))
+(defrouted user-get-events (username)
+  (let ((logs (query-dao 'log-entry
+                         (:limit
+                          (:select 'time 'source 'command 'target 'payload
+                           :from (dao-table-name (find-class 'log-entry))
+                           :where (:in 'connection
+                                       (:select 'id :from 'connection
+                                        :where (:= 'username username))))
+                          (or (query-parameter (make-request env) "limit")
+                              *limit-default*)))))
+    (if logs
+        (success-ok logs)
+        (error-not-found "No result"))))
 
 ;; TODO paginate?
-(defun server-list (env)
+(defrouted server-list ()
   (success-ok (select-dao 'server)))
 
-(defun server-get (env)
-  (with-parameters env (name)
-    (let ((server (car (select-dao 'server (:= 'name name)))))
-      (if server
-          (success-ok server)
-          (error-not-found "No such server")))))
+(defrouted server-get (name)
+  (let ((server (car (select-dao 'server (:= 'name name)))))
+    (if server
+        (success-ok server)
+        (error-not-found "No such server"))))
 
 ;; TODO paginate?
-(defun connection-list (env)
-  (with-parameters env (username)
-    (success-ok (select-dao 'connection (:= 'username username)))))
+(defrouted connection-list (username)
+  (success-ok (select-dao 'connection (:= 'username username))))
 
-(defun connection-get (env)
-  (with-parameters env (username server)
-    (let ((connection (car (select-dao 'connection (:and (:= 'username username)
-                                                         (:= 'server server))))))
-      (if connection
-          (success-ok connection)
-          (error-not-found "No such connection")))))
+(defrouted connection-get (username server)
+  (let ((connection (car (select-dao 'connection (:and (:= 'username username)
+                                                       (:= 'server server))))))
+    (if connection
+        (success-ok connection)
+        (error-not-found "No such connection"))))
 
 ;; TODO paginate?
-(defun channel-list (env)
-  (with-parameters env (username server)
-    (success-ok (select-dao 'channel (:= 'connection
-                                        (:select 'id :from 'connection
-                                         :where (:and (:= 'username username)
-                                                      (:= 'server server))))))))
+(defrouted channel-list (username server)
+  (success-ok (select-dao 'channel (:= 'connection
+                                       (:select 'id :from 'connection
+                                        :where (:and (:= 'username username)
+                                                     (:= 'server server)))))))
 
 ;; XXX check content-type?
-(defun channel-join (env)
-  (with-parameters env (username server channel)
-    ;; XXX retrieve only id from connection
-    (let ((connection (car (select-dao 'connection
-                                       (:and (:= 'username username)
-                                             (:= 'server server))))))
-      (if connection
-          (progn
-            (rpc-send connection 'join channel
-                      (cdr (assoc :password (decode-json (getf env :raw-body)))))
-            (success-accepted (format nil "Joining channel ~a" channel)))
-          (error-not-found "No such connection")))))
+(defrouted channel-join(username server channel)
+  ;; XXX retrieve only id from connection
+  (let ((connection (car (select-dao 'connection
+                             (:and (:= 'username username)
+                                   (:= 'server server))))))
+    (if connection
+        (progn
+          (rpc-send connection 'join channel
+                    (cdr (assoc :password (decode-json (getf env :raw-body)))))
+          (success-accepted (format nil "Joining channel ~a" channel)))
+        (error-not-found "No such connection"))))
 
 ;; XXX check content-type?
-(defun channel-part (env)
-  (with-parameters env (username server channel)
-    ;; XXX retrieve only id from connection
-    (let ((channel-dao (car (select-dao 'channel (:and (:= 'connection
-                                                           (:select 'id :from 'connection
-                                                            :where (:and (:= 'username username)
-                                                                         (:= 'server server))))
-                                                       (:= 'name channel))))))
-      (if channel-dao
-          (progn
-            (rpc-send (channel-connection channel-dao) 'part channel
-                      (cdr (assoc :reason (decode-json (getf env :raw-body)))))
-            (success-accepted (format nil "Parting channel ~a" channel)))
-          (error-not-found "No such connection or channel not joined")))))
+(defrouted channel-part (username server channel)
+  ;; XXX retrieve only id from connection
+  (let ((channel-dao (car (select-dao 'channel (:and (:= 'connection
+                                                         (:select 'id :from 'connection
+                                                          :where (:and (:= 'username username)
+                                                                       (:= 'server server))))
+                                                     (:= 'name channel))))))
+    (if channel-dao
+        (progn
+          (rpc-send (channel-connection channel-dao) 'part channel
+                    (cdr (assoc :reason (decode-json (getf env :raw-body)))))
+          (success-accepted (format nil "Parting channel ~a" channel)))
+        (error-not-found "No such connection or channel not joined"))))
 
 ;; TODO paginate?
-(defun channel-get (env)
-  (with-parameters env (username server channel)
-    (let ((channel (car (select-dao 'channel (:and (:= 'connection
-                                                       (:select 'id :from 'connection
-                                                        :where (:and (:= 'username username)
-                                                                     (:= 'server server))))
-                                                   (:= 'name channel))))))
-      (if channel
-          (success-ok channel)
-          (error-not-found "No such connection or channel")))))
+(defrouted channel-get (username server channel)
+  (let ((channel (car (select-dao 'channel (:and (:= 'connection
+                                                     (:select 'id :from 'connection
+                                                      :where (:and (:= 'username username)
+                                                                   (:= 'server server))))
+                                                 (:= 'name channel))))))
+    (if channel
+        (success-ok channel)
+        (error-not-found "No such connection or channel"))))
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
-(defun channel-get-events (env)
-  (with-parameters env (username server channel)
-    (let ((logs (query-dao 'log-entry
-                           (:limit
-                            (:select 'time 'source 'command 'target 'payload
-                             :from (dao-table-name (find-class 'log-entry))
-                             :where (:and (:= 'connection
-                                              (:select 'id :from 'connection
-                                               :where (:and (:= 'username username)
-                                                            (:= 'server server))))
-                                          (:= 'target channel)))
-                            (or (query-parameter (make-request env) "limit")
-                                *limit-default*)))))
-      (if logs
-          (success-ok logs)
-          (error-not-found "No such connection or channel")))))
+(defrouted channel-get-events (username server channel)
+  (let ((logs (query-dao 'log-entry
+                         (:limit
+                          (:select 'time 'source 'command 'target 'payload
+                           :from (dao-table-name (find-class 'log-entry))
+                           :where (:and (:= 'connection
+                                            (:select 'id :from 'connection
+                                             :where (:and (:= 'username username)
+                                                          (:= 'server server))))
+                                        (:= 'target channel)))
+                          (or (query-parameter (make-request env) "limit")
+                              *limit-default*)))))
+    (if logs
+        (success-ok logs)
+        (error-not-found "No such connection or channel"))))
 
 (defroutes app
   (GET "/user" #'user-list)
@@ -225,9 +226,7 @@
 (defun start ()
   "Start the Kawoosh httpd server."
   (setq *httpd*
-        (with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
-          (postmodern:execute "SET TIMEZONE='UTC'")
-          (clackup #'app))))
+        (clackup #'app)))
 
 (defun stop (&optional (handler *httpd*))
   "Stop the Kawoosh httpd server."
