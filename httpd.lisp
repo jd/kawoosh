@@ -89,18 +89,18 @@
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
 (defrouted user-get-events (username)
-  (let ((logs (query-dao 'log-entry
-                         (:limit
-                          (:select 'time 'source 'command 'target 'payload
-                           :from (dao-table-name (find-class 'log-entry))
-                           :where (:in 'connection
-                                       (:select 'id :from 'connection
-                                        :where (:= 'username username))))
-                          (or (query-parameter (make-request env) "limit")
-                              *limit-default*)))))
-    (if logs
-        (success-ok logs)
-        (error-not-found "No result"))))
+  (if (get-dao 'user username)
+      (let ((logs (query-dao 'log-entry
+                             (:limit
+                              (:select 'time 'source 'command 'target 'payload
+                               :from (dao-table-name (find-class 'log-entry))
+                               :where (:in 'connection
+                                           (:select 'id :from 'connection
+                                            :where (:= 'username username))))
+                              (or (query-parameter (make-request env) "limit")
+                                  *limit-default*)))))
+        (success-ok logs))
+      (error-not-found "No such user.")))
 
 ;; TODO paginate?
 (defrouted server-list ()

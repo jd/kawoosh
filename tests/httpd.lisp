@@ -22,7 +22,7 @@
        ,(if (listp req)
             `(http-request ,(cadr req)
                            :method ,(car req)
-                          :content ,(caddr req))
+                           :content ,(caddr req))
             `(http-request ,req))
      (declare (special body status headers))
      ,@body))
@@ -57,6 +57,10 @@
         (is-equal (length s) 1)
         (is-equal (cdr (assoc :command event)) "PRIVMSG" "Command")
         (is-equal (cdr (assoc :source event)) "buddyboy" "Command"))
+      (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))
+
+    (do-test "http://localhost:4242/user/nosuchuser/events"
+      (is-equal status 404 "Status code")
       (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))
 
     (do-test
