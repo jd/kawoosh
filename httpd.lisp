@@ -6,11 +6,13 @@
         clack.app.route
         clack.request
         json)
+  (:shadow :stop)
   (:shadowing-import-from
    :kawoosh.dao :server-port)
   (:shadowing-import-from
    :kawoosh.dao :server-name)
   (:export start
+           stop
            app))
 
 (in-package :kawoosh.httpd)
@@ -217,7 +219,16 @@
   ;; (DELETE "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-delete-user) ; kick
   )
 
+(defvar *httpd* nil
+  "The running httpd handler.")
+
 (defun start ()
-  (with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
-    (postmodern:execute "SET TIMEZONE='UTC'")
-    (clackup #'app)))
+  "Start the Kawoosh httpd server."
+  (setq *httpd*
+        (with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
+          (postmodern:execute "SET TIMEZONE='UTC'")
+          (clackup #'app))))
+
+(defun stop (&optional (handler *httpd*))
+  "Stop the Kawoosh httpd server."
+  (clack:stop *httpd*))

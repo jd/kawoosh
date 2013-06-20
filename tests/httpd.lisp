@@ -180,3 +180,8 @@
         (is-equal (cdr (assoc :command event)) "PRIVMSG" "Command")
         (is-equal (cdr (assoc :source event)) "buddyboy" "Command"))
       (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type")))))
+
+(test start-stop "Kawoosh httpd start and stop"
+      (start)
+      (stop)
+      (stop (start)))
