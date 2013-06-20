@@ -15,6 +15,18 @@
 
 (in-package :kawoosh.httpd)
 
+(defparameter *dbname* "kawoosh"
+  "Database name.")
+
+(defparameter *dbuser* "kawoosh"
+  "Databaser user name.")
+
+  (defparameter *dbpassword* "kawoosh"
+    "Databaser password.")
+
+(defparameter *dbhost* "localhost"
+  "Databaser host.")
+
 (defgeneric rpc-send (connection command &rest args))
 
 (defmethod rpc-send ((connection connection) command &rest args)
@@ -206,4 +218,6 @@
   )
 
 (defun start ()
-  (clackup #'app))
+  (with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
+    (postmodern:execute "SET TIMEZONE='UTC'")
+    (clackup #'app)))
