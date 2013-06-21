@@ -4,6 +4,7 @@
   :depends-on (#:cl-async
                #:cl-async-ssl
                #:cl-irc
+               #:flexi-streams
                #:postmodern
                #:cl-postgres
                #:simple-date

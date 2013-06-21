@@ -2,6 +2,7 @@
   (:use cl
         kawoosh.dao
         clack
+        flexi-streams
         postmodern
         clack.app.route
         clack.request
@@ -86,20 +87,28 @@
         (success-ok user)
         (error-not-found "No such user"))))
 
-;; TODO paginate?
+(defun user-send-events (username stream)
+  "Send new events for USERNAME to STREAM."
+  (let* ((last-id 0)
+         (logs (with-pg-connection
+                   (query-dao 'log-entry
+                              (:select 'time 'source 'command 'target 'payload
+                               :from (dao-table-name (find-class 'log-entry))
+                               :where (:and
+                                       (:> 'id last-id)
+                                       (:in 'connection
+                                            (:select 'id :from 'connection
+                                             :where (:= 'username username)))))))))
+    (dolist (log logs)
+      (write-sequence (string-to-octets (encode-json-to-string log)) stream))))
+
 ;; TODO ?from=<timestamp>
 (defrouted user-get-events (username)
   (if (get-dao 'user username)
-      (let ((logs (query-dao 'log-entry
-                             (:limit
-                              (:select 'time 'source 'command 'target 'payload
-                               :from (dao-table-name (find-class 'log-entry))
-                               :where (:in 'connection
-                                           (:select 'id :from 'connection
-                                            :where (:= 'username username))))
-                              (or (query-parameter (make-request env) "limit")
-                                  *limit-default*)))))
-        (success-ok logs))
+      `(200
+        (:content-type "application/json"
+         :transfer-encoding "chunked")
+        ,(lambda (stream) (user-send-events username stream)))
       (error-not-found "No such user.")))
 
 ;; TODO paginate?
