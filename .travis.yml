@@ -1,10 +1,8 @@
 language: common-lisp
 install:
-  - sudo apt-get install sbcl pgtap libevent-core-2.0-5 libevent-extra-2.0-5 libevent-openssl-2.0-5
+  - sudo apt-get install sbcl pgtap
   - wget -q http://beta.quicklisp.org/quicklisp.lisp -O ~/quicklisp.lisp
   - mkdir -p ~/quicklisp/local-projects/
-  - git clone --depth 1 git://github.com/orthecreedence/cl-async.git ~/quicklisp/local-projects/cl-async
-  - git clone --depth 1 git://github.com/orthecreedence/cl-libevent2.git ~/quicklisp/local-projects/cl-libevent2
   - svn checkout svn://common-lisp.net/project/cl-irc/svn/trunk ~/quicklisp/local-projects/cl-irc
 before_script:
   - sudo -u postgres createuser -S -R -D -E -l kawoosh

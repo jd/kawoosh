@@ -1,9 +1,8 @@
 (defsystem kawoosh
   :author "Julien Danjou <julien@danjou.info>"
   :description "IRC/HTTP gateway"
-  :depends-on (#:cl-async
-               #:cl-async-ssl
-               #:cl-irc
+  :depends-on (#:cl-irc
+               #:cl+ssl
                #:flexi-streams
                #:postmodern
                #:cl-postgres

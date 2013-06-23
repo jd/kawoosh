@@ -9,58 +9,6 @@
 
 (in-package :kawoosh.worker)
 
-(defun connection-socket-read (connection)
-  (loop for message = (irc:read-irc-message connection)
-        while message
-        do (irc:irc-message-event connection message)))
-
-(defun async-event (ev)
-  (format t "Socket event: ~a~%" ev))
-
-(defun connection-connect (server port nickname
-                           &key
-                             (username nil)
-                             (realname nil)
-                             (password nil)
-                             (ssl nil))
-  "Connect to server and return a connection object."
-  (let* ((connection (make-instance 'irc:connection
-                                    :user username
-                                    :password password
-                                    :server-name server
-                                    :server-port port
-                                    :client-stream t))
-         ;; Use as:tcp-connect to build our network stream, and build a
-         ;; closure calling `connection-socket-read' with our `connection'
-         ;; as arguments
-         (network-stream
-           (funcall (if ssl
-                        #'cl-async-ssl:tcp-ssl-connect
-                        #'as:tcp-connect)
-                    server port
-                    (lambda (socket stream)
-                      (declare (ignore socket stream))
-                      (connection-socket-read connection))
-                    #'async-event
-                    :stream t)))
-    ;; Set the network stream on the connection
-    (setf (irc:network-stream connection) network-stream)
-    ;; Set the output stream on the connection
-    (setf (irc:output-stream connection)
-         ;; This is grabbed from cl-irc:make-connection
-          (flexi-streams:make-flexi-stream
-           network-stream
-           :element-type 'character
-           :external-format '(:utf8 :eol-style :crlf)))
-
-    (irc:add-default-hooks connection)
-
-    (unless (null password)
-      (irc:pass connection password))
-    (irc:nick connection nickname)
-    (irc:user- connection (or username nickname) 0 (or realname nickname))
-    connection))
-
 (defun irc-message-received-timestamp (msg)
   "Return the SQL timestamp for msg."
   (simple-date:universal-time-to-timestamp
@@ -266,11 +214,11 @@ If last is not nil, put the hook in the last run ones."
   "Connect to the connection."
   (let ((server (car (postmodern:select-dao 'server (:= 'name (connection-server connection))))))
     (setf (connection-network-connection connection)
-          (connection-connect (format nil "~a" (server-address server))
-                              (server-port server)
-                              (connection-nickname connection)
-                              :ssl (server-ssl-p server)
-                              :realname (connection-realname connection))))
+          (irc:connect :server (format nil "~a" (server-address server))
+                       :port (server-port server)
+                       :nickname (connection-nickname connection)
+                       :connection-security (if (server-ssl-p server) :ssl :none)
+                       :realname (connection-realname connection))))
 
   ;; Update (clean) the connection entry in the database
   (setf (connection-current-nickname connection) :null)
@@ -314,35 +262,12 @@ If last is not nil, put the hook in the last run ones."
   (dolist (msg-type '(privmsg notice kick topic error mode nick join part quit kill invite))
     (connection-add-hook connection
                          (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC")
-                         #'connection-log-msg)))
+                         #'connection-log-msg))
 
-(defun notification-handler (connection)
-  (multiple-value-bind (channel payload pid)
-      (cl-postgres:wait-for-notification postmodern:*database*)
-    (format t "NOTIFICATION RECEIVED ~a ~a ~a~%" channel payload pid)
-    ;; XXX Ignore pid == self.pid
-    (destructuring-bind (command &rest args)
-        (split-sequence #\Space payload)
-      ;; (format t "command ~a ~a ~a~%" command (eq 'kawoosh.worker:join (intern command)) args)
-      (switch (command :test #'string=)
-        ("JOIN"
-         (irc:join (connection-network-connection connection)
-                   (nth 0 args)
-                   :password (nth 1 args)))
-        ("PART"
-         (irc:part (connection-network-connection connection)
-                   (nth 0 args)
-                   (nth 1 args)))))))
-
-(defun worker-event-loop ()
-  (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
-    (postmodern:execute (format nil "LISTEN connection_~a"(connection-id connection)))
-    (as:fd-add
-     (get-socket-fd
-      (cl-postgres::connection-socket postmodern:*database*))
-     :read-cb (lambda () (notification-handler connection))
-     :event-cb #'async-event)
-    (connection-run connection)))
+  ;; Endless loop starts here
+  (irc:read-message-loop (connection-network-connection connection)))
 
 (defun start ()
-  (cl-async:start-event-loop #'worker-event-loop))
+  (with-pg-connection
+      (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
+        (connection-run connection))))
