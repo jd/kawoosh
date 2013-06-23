@@ -3,6 +3,11 @@
         cl-json
         postmodern)
   (:export dao-object
+           *dbname*
+           *dbuser*
+           *dbpassword*
+           *dbhost*
+           with-pg-connection
            user
            server
            connection
@@ -112,3 +117,20 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (:metaclass dao-class)
   (:table-name logs)
   (:keys id))
+
+(defparameter *dbname* "kawoosh"
+  "Database name.")
+
+(defparameter *dbuser* "kawoosh"
+  "Databaser user name.")
+
+(defparameter *dbpassword* "kawoosh"
+  "Databaser password.")
+
+(defparameter *dbhost* "localhost"
+  "Databaser host.")
+
+(defmacro with-pg-connection (&rest body)
+  `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
+     (postmodern:execute "SET TIMEZONE='UTC'")
+     ,@body))

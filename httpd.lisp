@@ -18,18 +18,6 @@
 
 (in-package :kawoosh.httpd)
 
-(defparameter *dbname* "kawoosh"
-  "Database name.")
-
-(defparameter *dbuser* "kawoosh"
-  "Databaser user name.")
-
-(defparameter *dbpassword* "kawoosh"
-  "Databaser password.")
-
-(defparameter *dbhost* "localhost"
-  "Databaser host.")
-
 (defgeneric rpc-send (connection command &rest args))
 
 (defmethod rpc-send ((connection connection) command &rest args)
@@ -64,11 +52,6 @@
   (http-reply 404
               `((status . "Not Found")
                 (message . ,message))))
-
-(defmacro with-pg-connection (&rest body)
-  `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
-     (postmodern:execute "SET TIMEZONE='UTC'")
-     ,@body))
 
 (defmacro defrouted (name keys &rest body)
   `(defun ,name (env)
