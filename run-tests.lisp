@@ -13,6 +13,12 @@
 (clack.test:test-app
  #'kawoosh.httpd:app
  (lambda ()
-   (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
-     (5am:explain! results)
-     (terminate (if (eq (5am:results-status results ) t) 0 1)))))
+   (let ((connection (kawoosh.worker:pick-connection)))
+     (bordeaux-threads:make-thread
+      (lambda () (kawoosh.worker:start connection)))
+     (loop while (or (not (kawoosh.dao:connection-network-connection connection))
+                     (not (irc::connectedp (kawoosh.dao:connection-network-connection connection))))
+           do (sleep 0.1))
+     (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
+       (5am:explain! results)
+       (terminate (if (eq (5am:results-status results ) t) 0 1))))))
