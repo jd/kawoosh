@@ -13,7 +13,6 @@
            connection
            channel
            log-entry
-           password
            id
            user-name
            user-password
