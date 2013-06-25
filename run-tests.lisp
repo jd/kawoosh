@@ -17,7 +17,8 @@
      (bordeaux-threads:make-thread
       (lambda () (kawoosh.worker:start connection)))
      (loop while (or (not (kawoosh.dao:connection-network-connection connection))
-                     (not (irc::connectedp (kawoosh.dao:connection-network-connection connection))))
+                     (not (irc::connectedp (kawoosh.dao:connection-network-connection connection)))
+                     (not (irc:find-channel (kawoosh.dao:connection-network-connection connection) "#test")))
            do (sleep 0.1))
      (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
        (5am:explain! results)
