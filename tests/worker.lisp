@@ -19,4 +19,5 @@
     (make-thread (lambda () (start connection)))
     (loop while (or (not (connection-network-connection connection))
                     (not (irc::connectedp (connection-network-connection connection))))
-          do (sleep 0.1))))
+          do (sleep 0.1))
+    (is-true (irc::connectedp (connection-network-connection connection)))))
