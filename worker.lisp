@@ -1,7 +1,7 @@
 (defpackage kawoosh.worker
-  (:use cl
-        alexandria
-        split-sequence
+  (:use bordeaux-threads
+        cl
+        cl-postgres
         postmodern
         kawoosh.dao
         kawoosh.util)
@@ -267,7 +267,21 @@ If last is not nil, put the hook in the last run ones."
   ;; Endless loop starts here
   (irc:read-message-loop (connection-network-connection connection)))
 
+(defun rpc-start (connection)
+  "Start listening on RPC channel for CONNECTION."
+  (with-pg-connection
+    (execute (format nil "LISTEN connection_~a" (connection-id connection)))
+    (loop while t
+          do (multiple-value-bind (channel payload pid)
+                 (wait-for-notification *database*)
+               (let ((command (read-from-string payload)))
+                 (eval (cons (car command)
+                             ;; Insert the connection as first argument
+                             (cons (connection-network-connection connection)
+                                   (cdr command)))))))))
+
 (defun start ()
   (with-pg-connection
       (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
+        (make-thread (lambda () (rpc-start connection)))
         (connection-run connection))))

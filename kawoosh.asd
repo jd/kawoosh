@@ -1,7 +1,8 @@
 (defsystem kawoosh
   :author "Julien Danjou <julien@danjou.info>"
   :description "IRC/HTTP gateway"
-  :depends-on (#:cl-irc
+  :depends-on (#:bordeaux-threads
+               #:cl-irc
                #:cl+ssl
                #:flexi-streams
                #:postmodern
@@ -10,7 +11,6 @@
                #:clack
                #:clack-app-route
                #:cl-json
-               #:split-sequence
                #:usocket)
   :components
   ((:file "dao")
