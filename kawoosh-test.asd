@@ -11,5 +11,11 @@
                #:drakma
                #:flexi-streams)
   :components
-  ((:module tests
-    :components ((:file "httpd")))))
+  ((:file "test"
+    :pathname "tests/test")
+   (:file "httpd"
+    :pathname "tests/httpd"
+    :depends-on ("test"))
+   (:file "worker"
+    :pathname "tests/worker"
+    :depends-on ("test"))))

@@ -5,7 +5,8 @@
         postmodern
         kawoosh.dao
         kawoosh.util)
-  (:export start))
+  (:export start
+           pick-connection))
 
 (in-package :kawoosh.worker)
 
@@ -280,8 +281,12 @@ If last is not nil, put the hook in the last run ones."
                              (cons (connection-network-connection connection)
                                    (cdr command)))))))))
 
-(defun start ()
+(defun pick-connection ()
   (with-pg-connection
-      (let ((connection (car (postmodern:select-dao 'connection "true LIMIT 1"))))
-        (make-thread (lambda () (rpc-start connection)))
-        (connection-run connection))))
+    (car (postmodern:select-dao 'connection "true LIMIT 1"))))
+
+(defun start (&optional connection)
+  (let ((connection (or connection (pick-connection))))
+    (make-thread (lambda () (rpc-start connection)))
+    (with-pg-connection
+      (connection-run connection))))

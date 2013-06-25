@@ -4,11 +4,13 @@
         clack.test
         drakma
         kawoosh.httpd
+        kawoosh.test
         fiveam))
 
 (in-package :kawoosh.test.httpd)
 
 (def-suite kawoosh.test.httpd
+  :in kawoosh.test
   :description "Kawoosh HTTPD tests")
 
 (in-suite kawoosh.test.httpd)
