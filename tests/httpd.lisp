@@ -37,7 +37,7 @@
     :topic--who :topic--time :creation--time))
 
 (test
- kawoosh-httpd
+ (kawoosh-httpd :depends-on (and . (kawoosh.test.worker:irc-connection)))
  "Kawoosh httpd testing"
  (test-app
   #'app
@@ -181,7 +181,7 @@
       (is-equal status 200 "Status code")
       (let* ((s (decode-json-body body))
              (event (nth 0 s)))
-        (is-equal (length s) 1)
+        (is-equal (length s) 2)
         (is-equal (cdr (assoc :command event)) "PRIVMSG" "Command")
         (is-equal (cdr (assoc :source event)) "buddyboy" "Command"))
       (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type")))))

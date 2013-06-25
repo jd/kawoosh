@@ -4,7 +4,8 @@
         fiveam
         kawoosh.dao
         kawoosh.test
-        kawoosh.worker))
+        kawoosh.worker)
+  (:export irc-connection))
 
 (in-package :kawoosh.test.worker)
 
@@ -15,9 +16,13 @@
 (in-suite kawoosh.test.worker)
 
 (test irc-connection
-  (let ((connection (pick-connection)))
-    (make-thread (lambda () (start connection)))
+  (let* ((connection (pick-connection))
+         (th (make-thread (lambda () (start connection)))))
     (loop while (or (not (connection-network-connection connection))
                     (not (irc::connectedp (connection-network-connection connection))))
           do (sleep 0.1))
-    (is-true (irc::connectedp (connection-network-connection connection)))))
+    (is-true (irc::connectedp (connection-network-connection connection)))
+    (loop while (not (irc:find-channel (connection-network-connection connection) "#test"))
+          do (sleep 0.1))
+    (is-true (irc:find-channel (connection-network-connection connection) "#test"))
+    (destroy-thread th)))

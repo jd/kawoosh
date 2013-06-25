@@ -15,7 +15,7 @@
     :pathname "tests/test")
    (:file "httpd"
     :pathname "tests/httpd"
-    :depends-on ("test"))
+    :depends-on ("test" "worker"))
    (:file "worker"
     :pathname "tests/worker"
     :depends-on ("test"))))
