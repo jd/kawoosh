@@ -18,15 +18,15 @@
 
 (in-package :kawoosh.httpd)
 
-(defgeneric rpc-send (connection command &rest args))
+(defgeneric rpc-send (connection &rest args))
 
-(defmethod rpc-send ((connection connection) command &rest args)
-  (apply 'rpc-send (connection-id connection) command args))
+(defmethod rpc-send ((connection connection) &rest args)
+  (apply 'rpc-send (connection-id connection) args))
 
-(defmethod rpc-send ((connection-id integer) command &rest args)
-  (execute (format nil "NOTIFY connection_~a, '~a ~{~@[~a~^ ~]~}'"
+(defmethod rpc-send ((connection-id integer) &rest args)
+  (execute (format nil "NOTIFY connection_~a, '~a'"
                    connection-id
-                   (symbol-name command) args)))
+                   (with-output-to-string (s) (prin1 args s)))))
 
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)
@@ -130,8 +130,8 @@
                                    (:= 'server server))))))
     (if connection
         (progn
-          (rpc-send connection 'join channel
-                    (cdr (assoc :password (decode-json (getf env :raw-body)))))
+          (rpc-send connection 'irc:join channel
+                    :password (cdr (assoc :password (decode-json (getf env :raw-body)))))
           (success-accepted (format nil "Joining channel ~a" channel)))
         (error-not-found "No such connection"))))
 
@@ -145,7 +145,7 @@
                                                      (:= 'name channel))))))
     (if channel-dao
         (progn
-          (rpc-send (channel-connection channel-dao) 'part channel
+          (rpc-send (channel-connection channel-dao) 'irc:part channel
                     (cdr (assoc :reason (decode-json (getf env :raw-body)))))
           (success-accepted (format nil "Parting channel ~a" channel)))
         (error-not-found "No such connection or channel not joined"))))
