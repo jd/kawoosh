@@ -123,7 +123,7 @@
                                                      (:= 'server server)))))))
 
 ;; XXX check content-type?
-(defrouted channel-join(username server channel)
+(defrouted channel-join (username server channel)
   ;; XXX retrieve only id from connection
   (let ((connection (car (select-dao 'connection
                              (:and (:= 'username username)
