@@ -10,6 +10,9 @@
 (load (merge-pathnames "quicklisp/setup.lisp"
                        (user-homedir-pathname)))
 (require 'kawoosh-test)
-(let ((results (5am:run 'kawoosh.test:kawoosh.test)))
-  (5am:explain! results)
-  (terminate (if (eq (5am:results-status results ) t) 0 1)))
+(clack.test:test-app
+ #'kawoosh.httpd:app
+ (lambda ()
+   (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
+     (5am:explain! results)
+     (terminate (if (eq (5am:results-status results ) t) 0 1)))))
