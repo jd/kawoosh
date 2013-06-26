@@ -11,7 +11,7 @@ before_script:
   - sbcl --load update-deps.lisp
   - ln -s $TRAVIS_BUILD_DIR ~/quicklisp/local-projects/kawoosh
 script:
-  - "sbcl --eval \"(require 'kawoosh)\" --eval '(kawoosh.dao:create-tables)' --quit"
+  - "sbcl --eval '(load (merge-pathnames \"quicklisp/setup.lisp\" (user-homedir-pathname)))' --eval \"(require 'kawoosh)\" --eval '(kawoosh.dao:create-tables)' --quit"
   - pg_prove -v -hlocalhost -Ukawoosh tests/*.sql | tee /tmp/pgprove.log
   - "grep -q '^Result: PASS' /tmp/pgprove.log"
   - sbcl --load run-tests.lisp
