@@ -149,7 +149,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
 );")
     (execute "CREATE TABLE servers (
        name text PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
-       address text NOT NULL CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
+       address text NOT NULL CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
        port integer DEFAULT 6667 CHECK (port > 0 AND port < 65536),
        ssl boolean NOT NULL DEFAULT FALSE
 );")
@@ -157,7 +157,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
        id serial PRIMARY KEY,
        server text REFERENCES servers(name),
        username text NOT NULL REFERENCES users(name) ON DELETE CASCADE,
-       nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
+       nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\\-_\\[\\]\\\\`{}]+'),
        current_nickname text,
        realname text,
        motd text,
@@ -167,7 +167,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
     (execute "CREATE TABLE channels (
 	id serial PRIMARY KEY,
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
-	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\x07\x13\x10]'),
+	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\\x07\\x13\\x10]'),
         -- XXX update password when modes is updated for password
 	password text,
         names text[],
@@ -199,8 +199,6 @@ LANGUAGE plpgsql;")
     ;; TODO remove this
     (execute "INSERT INTO users (name) VALUES ('jd');")
     (execute "INSERT INTO servers (name, address, ssl) VALUES ('Naquadah', 'irc.naquadah.org', true);")
-    (execute "WITH conn AS (
-     INSERT INTO connection (server, username, nickname, realname) VALUES ('Naquadah', 'jd', 'jd', 'Julien Danjou') RETURNING id
-) INSERT INTO channels (connection, name) SELECT id, '#test' FROM conn;")
+    (execute "WITH conn AS (INSERT INTO connection (server, username, nickname, realname) VALUES ('Naquadah', 'jd', 'jd', 'Julien Danjou') RETURNING id) INSERT INTO channels (connection, name) SELECT id, '#test' FROM conn;")
     (execute "INSERT INTO channels (connection, name) SELECT id, '#test-bis' FROM connection WHERE username='jd' AND server='Naquadah';")
     (execute "INSERT INTO logs (connection, source, command, target, payload) SELECT id, 'buddyboy', 'PRIVMSG', '#test', 'hey!' FROM connection WHERE username='jd' AND server='Naquadah';")))
