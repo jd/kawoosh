@@ -3,6 +3,8 @@
         cl-json
         postmodern)
   (:export dao-object
+           drop-tables
+           create-tables
            *dbname*
            *dbuser*
            *dbpassword*
@@ -138,3 +140,59 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (with-pg-connection
     (dolist (table-name '(logs channels connection servers users))
       (execute (:drop-table :if-exists table-name)))))
+
+(defun create-tables ()
+  (with-pg-connection
+    (execute "CREATE TABLE users (
+       name text NOT NULL PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
+       password text
+);")
+    (execute "CREATE TABLE servers (
+       name text PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
+       address text NOT NULL CHECK (address ~* E'^(([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9-]*[a-z0-9])$'),
+       port integer DEFAULT 6667 CHECK (port > 0 AND port < 65536),
+       ssl boolean NOT NULL DEFAULT FALSE
+);")
+    (execute "CREATE TABLE connection (
+       id serial PRIMARY KEY,
+       server text REFERENCES servers(name),
+       username text NOT NULL REFERENCES users(name) ON DELETE CASCADE,
+       nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\-_\[\]\\`{}]+'),
+       current_nickname text,
+       realname text,
+       motd text,
+       connected boolean NOT NULL DEFAULT FALSE,
+       UNIQUE (server, username)
+);")
+    (execute "CREATE TABLE channels (
+	id serial PRIMARY KEY,
+	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
+	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\x07\x13\x10]'),
+        -- XXX update password when modes is updated for password
+	password text,
+        names text[],
+        modes text[],
+        topic text,
+        topic_who text,
+        topic_time timestamp,
+        creation_time timestamp,
+	UNIQUE (connection, name)
+);")
+    (execute "CREATE TABLE logs (
+	id serial PRIMARY KEY,
+	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
+	time timestamp NOT NULL DEFAULT CURRENT_DATE,
+	source text NOT NULL,
+	command text NOT NULL,
+	target text NOT NULL,
+	payload text
+);")
+    ;; Lower and trim channels.name on insertion
+    (execute "CREATE OR REPLACE FUNCTION lower_name() RETURNS trigger AS $lower_name$
+BEGIN
+  NEW.name := lower(trim(NEW.name));
+  RETURN NEW;
+END;
+$lower_name$
+LANGUAGE plpgsql;")
+    (execute "CREATE TRIGGER lower_name BEFORE INSERT ON channels FOR EACH ROW EXECUTE PROCEDURE lower_name();")))
