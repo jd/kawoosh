@@ -196,6 +196,14 @@ END;
 $lower_name$
 LANGUAGE plpgsql;")
     (execute "CREATE TRIGGER lower_name BEFORE INSERT ON channels FOR EACH ROW EXECUTE PROCEDURE lower_name();")
+    (execute " CREATE OR REPLACE FUNCTION lower_address() RETURNS trigger AS $lower_address$
+BEGIN
+  NEW.address := lower(trim(NEW.address));
+  RETURN NEW;
+END;
+$lower_address$
+LANGUAGE plpgsql;")
+    (execute "CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();")
     ;; TODO remove this
     (execute "INSERT INTO users (name) VALUES ('jd');")
     (execute "INSERT INTO servers (name, address, ssl) VALUES ('Naquadah', 'irc.naquadah.org', true);")
