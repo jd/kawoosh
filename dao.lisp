@@ -133,3 +133,8 @@ O to STREAM (or to *JSON-OUTPUT*)."
   `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
      (postmodern:execute "SET TIMEZONE='UTC'")
      ,@body))
+
+(defun drop-tables ()
+  (with-pg-connection
+    (dolist (table-name '(logs channels connection servers users))
+      (execute (:drop-table :if-exists table-name)))))
