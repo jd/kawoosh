@@ -75,11 +75,6 @@ If last is not nil, put the hook in the last run ones."
     (declare (ignore target text))
     (postmodern:update-dao connection)))
 
-;; XXX unit test me
-;; XXX move this into a utility package
-(defun list->array (l)
-  "Recursive list to array conversion."
-  (make-array (length l) :initial-contents l))
 
 (defun channel-update-names (connection channel)
   (let ((users (loop for user being the hash-values of
