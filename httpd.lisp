@@ -35,12 +35,13 @@
 
 (defconstant *limit-default* 100)
 
-(defun http-reply (code data)
+(defun http-reply (code &optional data)
   `(,code
     (:content-type "application/json")
-    (,(encode-json-to-string data))))
+    ,(when data
+       (list (encode-json-to-string data)))))
 
-(defun success-ok (data)
+(defun success-ok (&optional data)
   (http-reply 200 data))
 
 (defun success-accepted (message)
@@ -73,6 +74,14 @@
 (defrouted user-put (username)
   (let ((user (make-dao 'user :name username)))
     (success-ok user)))
+
+(defrouted user-delete (username)
+  (let ((user (get-dao 'user username)))
+    (if user
+        (progn
+          (delete-dao user)
+          (success-ok nil))
+        (error-not-found "No such user"))))
 
 (defun user-send-events (username stream)
   "Send new events for USERNAME to STREAM."
@@ -187,6 +196,7 @@
   (GET "/user" #'user-list)
   (GET "/user/:name" #'user-get)
   (PUT "/user/:username" #'user-put)
+  (DELETE "/user/:username" #'user-delete)
   (GET "/user/:username/events" #'user-get-events)
 
   (GET "/server" #'server-list)

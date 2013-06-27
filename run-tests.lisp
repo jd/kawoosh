@@ -10,18 +10,9 @@
 (load (merge-pathnames "quicklisp/setup.lisp"
                        (user-homedir-pathname)))
 (require 'kawoosh-test)
-(kawoosh.dao:drop-tables)
-(kawoosh.dao:create-tables)
 (clack.test:test-app
  #'kawoosh.httpd:app
  (lambda ()
-   (let ((connection (kawoosh.worker:pick-connection)))
-     (bordeaux-threads:make-thread
-      (lambda () (kawoosh.worker:start connection)))
-     (loop while (or (not (kawoosh.dao:connection-network-connection connection))
-                     (not (irc::connectedp (kawoosh.dao:connection-network-connection connection)))
-                     (not (irc:find-channel (kawoosh.dao:connection-network-connection connection) "#test")))
-           do (sleep 0.1))
-     (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
-       (5am:explain! results)
-       (terminate (if (eq (5am:results-status results ) t) 0 1))))))
+   (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
+     (5am:explain! results)
+     (terminate (if (eq (5am:results-status results ) t) 0 1)))))
