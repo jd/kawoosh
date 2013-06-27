@@ -19,7 +19,7 @@
 (defun decode-json-body (body)
   (decode-json-from-string (flex:octets-to-string body)))
 
-(defmacro do-test (req &rest body)
+(defmacro with-request (req &rest body)
   `(multiple-value-bind (body status headers)
        ,(if (listp req)
             `(http-request ,(cadr req)
@@ -43,15 +43,15 @@
 (test
  kawoosh-httpd-user
  (with-fixture database ()
-   (do-test "http://localhost:4242/user"
+   (with-request "http://localhost:4242/user"
      (is (equal status 200) "Status code 200")
      (is (equal (decode-json-body body) '()))
      (is (equal (cdr (assoc :content-type headers)) "application/json")))
-   (do-test (:put "http://localhost:4242/user/jd")
+   (with-request (:put "http://localhost:4242/user/jd")
      (is (equal status 200) "Status code 200")
      (is (equal (decode-json-body body) '((:name . "jd"))))
      (is (equal (cdr (assoc :content-type headers)) "application/json")))
-   (do-test "http://localhost:4242/user"
+   (with-request "http://localhost:4242/user"
      (is (equal status 200) "Status code 200")
      (is (equal (decode-json-body body) '(((:name . "jd")))))
      (is (equal (cdr (assoc :content-type headers)) "application/json")))))
@@ -59,7 +59,7 @@
 (test
   (kawoosh-httpd-user-events-retrieval
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test "http://localhost:4242/user/jd/events"
+  (with-request "http://localhost:4242/user/jd/events"
     (is-equal status 200 "Status code")
     (let ((event (decode-json-body body)))
       (is-equal 5 (length event))
@@ -70,14 +70,14 @@
 (test
   (kawoosh-httpd-nosuchuser-events-retrieval
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test "http://localhost:4242/user/nosuchuser/events"
+  (with-request "http://localhost:4242/user/nosuchuser/events"
     (is-equal status 404 "Status code")
     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type")))
 
 (test
   (kawoosh-httpd-nosuchuser-retrieval
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/user/foobar"
     (is-equal status 404 "Status code 404")
     (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such user")))
@@ -86,7 +86,7 @@
 (test
   (kawoosh-httpd-server-list
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test "http://localhost:4242/server"
+  (with-request "http://localhost:4242/server"
     (is-equal status 200 "Status code 200")
     (is-equal (decode-json-body body) '(((:name . "Naquadah")
                                          (:address . "irc.naquadah.org")
@@ -97,7 +97,7 @@
 (test
   (kawoosh-httpd-server-get
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/server/Naquadah"
     (is-equal status 200 "Status code 200")
     (is-equal (decode-json-body body) '((:name . "Naquadah")
@@ -109,7 +109,7 @@
 (test
   (kawoosh-httpd-nosuchserver-get
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/server/foobar"
     (is-equal status 404 "Status code 404")
     (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such server")))
@@ -118,7 +118,7 @@
 (test
   (kawoosh-httpd-user-connection-list
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/user/jd/connection"
     (is-equal status 200 "Status code 200")
     (let* ((data (decode-json-body (symbol-value 'body)))
@@ -138,7 +138,7 @@
 (test
   (kawoosh-httpd-user-connection-get
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/user/jd/connection/Naquadah"
     (is-equal status 200 "Status code 200")
     (let* ((s (decode-json-body (symbol-value 'body))))
@@ -156,7 +156,7 @@
 (test
   (kawoosh-httpd-user-connection-channel-list
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/user/jd/connection/Naquadah/channel"
     (is-equal status 200 "Status code 200")
     (let* ((data (decode-json-body (symbol-value 'body)))
@@ -169,7 +169,7 @@
 (test
   (kawoosh-httpd-user-connection-channel-list
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test"
     (is-equal status 200 "Status code 200")
     (let ((c (decode-json-body (symbol-value 'body))))
@@ -180,7 +180,7 @@
 (test
   (kawoosh-httpd-user-connection-channel-get
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
       (:put "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
     (is-equal status 202 "Status code")
     (is-equal (decode-json-body (symbol-value 'body))
@@ -191,7 +191,7 @@
 (test
   (kawoosh-httpd-user-nosuchconnection-channel-get
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
       (:put "http://localhost:4242/user/jd/connection/NoConnection/channel/%23test" "{}")
     (is-equal status 404 "Status code")
     (is-equal (decode-json-body (symbol-value 'body))
@@ -202,7 +202,7 @@
 (test
   (kawoosh-httpd-user-connection-channel-delete
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
       (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
     (is-equal status 202 "Status code")
     (is-equal (decode-json-body (symbol-value 'body))
@@ -213,7 +213,7 @@
 (test
   (kawoosh-httpd-user-connection-nosuchchannel-delete
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
       (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/foobar" "{}")
     (is-equal status 404 "Status code")
     (is-equal (decode-json-body (symbol-value 'body))
@@ -225,7 +225,7 @@
 (test
   (kawoosh-httpd-user-connection-channel-events-get
    :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test
+  (with-request
     "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test/events"
     (is-equal status 200 "Status code")
     (let* ((s (decode-json-body body))
