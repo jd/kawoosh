@@ -1,11 +1,14 @@
 (defpackage kawoosh.test.httpd
-  (:use cl
+  (:use bordeaux-threads
+        cl
         cl-json
         clack.test
         drakma
+        kawoosh.dao
         kawoosh.httpd
         kawoosh.test
-        fiveam))
+        fiveam
+        postmodern))
 
 (in-package :kawoosh.test.httpd)
 
@@ -42,6 +45,22 @@
   (&body)
   (kawoosh.dao:drop-tables))
 
+(def-fixture worker (username server channel)
+  (let ((connection
+          (with-pg-connection
+              (car (select-dao 'connection (:and (:= 'username username)
+                                                 (:= 'server server)))))))
+    (assert connection nil "No such fixture connection")
+    (let ((th (make-thread (lambda () (kawoosh.worker:start connection)))))
+      ;; Wait for the connection to be established
+      (loop while (or (not (connection-network-connection connection))
+                      (not (irc:connectedp (connection-network-connection connection)))
+                      (and channel
+                           (not (irc:find-channel (connection-network-connection connection) channel))))
+            do (sleep 0.1))
+      (&body)
+      (destroy-thread th))))
+
 (test
  httpd-user
  (with-fixture database ()
@@ -71,13 +90,14 @@
 (test
  httpd-user-events-retrieval
  (with-fixture database ()
-   (with-request "http://localhost:4242/user/jd/events"
-     (is (equal status 200))
-     (let ((event (decode-json-body body)))
-       (is (equal 5 (length event)))
-       (is (equal "PRIVMSG" (cdr (assoc :command event))))
-       (is (equal "buddyboy" (cdr (assoc :source event)))))
-     (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type"))
+   (with-fixture worker ("jd" "Naquadah" "#test")
+     (with-request "http://localhost:4242/user/jd/events"
+       (is (equal status 200))
+       (let ((event (decode-json-body body)))
+         (is (equal 5 (length event)))
+         (is (equal "NOTICE" (cdr (assoc :command event))))
+         (is (equal "irc.naquadah.org" (cdr (assoc :source event)))))
+       (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type")))
    (with-request "http://localhost:4242/user/nosuchuser/events"
      (is (equal status 404) "Status code")
      (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type"))))
@@ -188,14 +208,16 @@
                  (:message . "No such connection or channel not joined"))
                "Error message")
      (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))
-   (with-request
-     "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test/events"
-     (is-equal status 200 "Status code")
-     (let* ((s (decode-json-body body))
-            (event (nth 0 s)))
-       (is-equal (cdr (assoc :command event)) "PRIVMSG" "Command")
-       (is-equal (cdr (assoc :source event)) "buddyboy" "Command"))
-     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))))
+   (with-fixture worker ("jd" "Naquadah" "#test")
+     (with-request
+       "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test/events"
+       (is-equal status 200 "Status code")
+       (let* ((s (decode-json-body body))
+              (event (nth 0 s)))
+         (is (equal (cdr (assoc :command event)) "JOIN"))
+         (is (equal (cdr (assoc :payload event)) nil))
+         (is (equal (cdr (assoc :target event)) "#test")))
+       (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type")))))
 
 (test start-stop "Kawoosh httpd start and stop"
       (start)
