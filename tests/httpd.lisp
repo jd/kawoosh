@@ -48,11 +48,11 @@
    ;; TODO move at the end of this test when the data will be empty on startup
    (with-request (:delete "http://localhost:4242/user/jd")
      (is (equal status 200) "Status code 200")
-     ;; (is (equal (read body) nil))       ; TODO check there's no body
+     (is (equal body nil))
      (is (equal (cdr (assoc :content-type headers)) "application/json")))
    (with-request "http://localhost:4242/user"
      (is (equal status 200) "Status code 200")
-     ;; (is (equal (decode-json-body body) '())) ; TODO check body empty
+     (is (equal body nil))
      (is (equal (cdr (assoc :content-type headers)) "application/json")))
    (with-request (:put "http://localhost:4242/user/jd")
      (is (equal status 200) "Status code 200")
