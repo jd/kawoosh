@@ -77,11 +77,7 @@
        (is (equal 5 (length event)))
        (is (equal "PRIVMSG" (cdr (assoc :command event))))
        (is (equal "buddyboy" (cdr (assoc :source event)))))
-     (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type"))))
-
-(test
- httpd-nosuchuser-events-retrieval
- (with-fixture database ()
+     (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type"))
    (with-request "http://localhost:4242/user/nosuchuser/events"
      (is (equal status 404) "Status code")
      (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type"))))
