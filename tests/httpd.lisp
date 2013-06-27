@@ -36,21 +36,25 @@
   '(:name :password :modes :names :topic
     :topic--who :topic--time :creation--time))
 
-(test
-  (kawoosh-httpd-user
-   :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test "http://localhost:4242/user"
-    (is (equal status 200) "Status code 200")
-    (is (equal (decode-json-body body) '(((:name . "jd")))))
-    (is (equal (cdr (assoc :content-type headers)) "application/json"))))
+(def-fixture database ()
+  (kawoosh.dao:drop-tables)
+  (kawoosh.dao:create-tables))
 
 (test
-  (kawoosh-httpd-user-retrieval
-   :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (do-test "http://localhost:4242/user/jd"
-    (is-equal status 200 "Status code 200")
-    (is-equal (decode-json-body body) '((:name . "jd")))
-    (is-equal (cdr (assoc :content-type headers)) "application/json")))
+ kawoosh-httpd-user
+ (with-fixture database ()
+   (do-test "http://localhost:4242/user"
+     (is (equal status 200) "Status code 200")
+     (is (equal (decode-json-body body) '()))
+     (is (equal (cdr (assoc :content-type headers)) "application/json")))
+   (do-test (:put "http://localhost:4242/user/jd")
+     (is (equal status 200) "Status code 200")
+     (is (equal (decode-json-body body) '((:name . "jd"))))
+     (is (equal (cdr (assoc :content-type headers)) "application/json")))
+   (do-test "http://localhost:4242/user"
+     (is (equal status 200) "Status code 200")
+     (is (equal (decode-json-body body) '(((:name . "jd")))))
+     (is (equal (cdr (assoc :content-type headers)) "application/json")))))
 
 (test
   (kawoosh-httpd-user-events-retrieval

@@ -70,6 +70,10 @@
         (success-ok user)
         (error-not-found "No such user"))))
 
+(defrouted user-put (username)
+  (let ((user (make-dao 'user :name username)))
+    (success-ok user)))
+
 (defun user-send-events (username stream)
   "Send new events for USERNAME to STREAM."
   (let* ((last-id 0)
@@ -182,6 +186,7 @@
 (defroutes app
   (GET "/user" #'user-list)
   (GET "/user/:name" #'user-get)
+  (PUT "/user/:username" #'user-put)
   (GET "/user/:username/events" #'user-get-events)
 
   (GET "/server" #'server-list)
