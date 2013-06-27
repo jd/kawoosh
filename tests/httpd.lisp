@@ -68,52 +68,44 @@
     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type")))
 
 (test
-  (kawoosh-httpd-nosuchuser-events-retrieval
-   :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (with-request "http://localhost:4242/user/nosuchuser/events"
-    (is-equal status 404 "Status code")
-    (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type")))
+ kawoosh-httpd-nosuchuser-events-retrieval
+ (with-fixture database ()
+   (with-request "http://localhost:4242/user/nosuchuser/events"
+     (is-equal status 404 "Status code")
+     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))))
 
 (test
-  (kawoosh-httpd-nosuchuser-retrieval
-   :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (with-request
-    "http://localhost:4242/user/foobar"
-    (is-equal status 404 "Status code 404")
-    (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such user")))
-    (is-equal (cdr (assoc :content-type headers)) "application/json")))
+ kawoosh-httpd-nosuchuser-retrieval
+ (with-fixture database ()
+   (with-request
+     "http://localhost:4242/user/foobar"
+     (is-equal status 404 "Status code 404")
+     (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such user")))
+     (is-equal (cdr (assoc :content-type headers)) "application/json"))))
 
 (test
-  (kawoosh-httpd-server-list
-   :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (with-request "http://localhost:4242/server"
-    (is-equal status 200 "Status code 200")
-    (is-equal (decode-json-body body) '(((:name . "Naquadah")
+ kawoosh-httpd-server
+ (with-fixture database ()
+   (with-request "http://localhost:4242/server"
+     (is-equal status 200 "Status code 200")
+     (is-equal (decode-json-body body) '(((:name . "Naquadah")
+                                          (:address . "irc.naquadah.org")
+                                          (:port . 6667)
+                                          (:ssl . t))))
+     (is-equal (cdr (assoc :content-type headers)) "application/json"))
+   (with-request
+     "http://localhost:4242/server/Naquadah"
+     (is-equal status 200 "Status code 200")
+     (is-equal (decode-json-body body) '((:name . "Naquadah")
                                          (:address . "irc.naquadah.org")
                                          (:port . 6667)
-                                         (:ssl . t))))
-    (is-equal (cdr (assoc :content-type headers)) "application/json")))
-
-(test
-  (kawoosh-httpd-server-get
-   :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (with-request
-    "http://localhost:4242/server/Naquadah"
-    (is-equal status 200 "Status code 200")
-    (is-equal (decode-json-body body) '((:name . "Naquadah")
-                                        (:address . "irc.naquadah.org")
-                                        (:port . 6667)
-                                        (:ssl . t)))
-    (is-equal (cdr (assoc :content-type headers)) "application/json")))
-
-(test
-  (kawoosh-httpd-nosuchserver-get
-   :depends-on (and . (kawoosh.test.worker:irc-connection)))
-  (with-request
-    "http://localhost:4242/server/foobar"
-    (is-equal status 404 "Status code 404")
-    (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such server")))
-    (is-equal (cdr (assoc :content-type headers)) "application/json")))
+                                         (:ssl . t)))
+     (is-equal (cdr (assoc :content-type headers)) "application/json"))
+   (with-request
+     "http://localhost:4242/server/foobar"
+     (is-equal status 404 "Status code 404")
+     (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such server")))
+     (is-equal (cdr (assoc :content-type headers)) "application/json"))))
 
 (test
   (kawoosh-httpd-user-connection-list
