@@ -8,7 +8,7 @@ before_script:
   - sudo -u postgres createuser -S -R -D -E -l kawoosh
   - sudo -u postgres createdb -E UTF8 -O kawoosh -hlocalhost kawoosh
   - psql -U kawoosh -hlocalhost -d kawoosh -f `pg_config --sharedir`/extension/pgtap--*.sql
-  - sbcl --load update-deps.lisp
+  - sbcl --load tests/.update-deps.lisp
   - ln -s $TRAVIS_BUILD_DIR ~/quicklisp/local-projects/kawoosh
 script:
   - "sbcl --eval '(load (merge-pathnames \"quicklisp/setup.lisp\" (user-homedir-pathname)))' --eval \"(require 'kawoosh)\" --eval '(kawoosh.dao:create-tables)' --quit"
