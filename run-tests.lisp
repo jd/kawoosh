@@ -10,6 +10,8 @@
 (load (merge-pathnames "quicklisp/setup.lisp"
                        (user-homedir-pathname)))
 (require 'kawoosh-test)
+(kawoosh.dao:drop-tables)
+(kawoosh.dao:create-tables)
 (clack.test:test-app
  #'kawoosh.httpd:app
  (lambda ()
