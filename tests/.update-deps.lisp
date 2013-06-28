@@ -7,5 +7,4 @@
 (ql:quickload 'drakma)
 (ql:quickload 'fiveam)
 (ql:quickload 'postmodern)
-(ql:quickload 'split-sequence)
 (quit)
