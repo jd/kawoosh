@@ -25,7 +25,7 @@ PREPARE insert_non_unique_channel AS INSERT INTO channels (connection, name) SEL
 SELECT throws_ok(
        'insert_non_unique_channel',
        23505,
-       'duplicate key value violates unique constraint "channels_connection_name_key"',
+       'duplicate key value violates unique constraint "channels_pkey"',
        'Non-unique channel'
 );
 
