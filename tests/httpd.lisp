@@ -168,7 +168,7 @@
      (is-equal status 200 "Status code 200")
      (let* ((data (decode-json-body (symbol-value 'body)))
             (c (car (decode-json-body (symbol-value 'body)))))
-       (is-equal (length data) 2 "Number of channels")
+       (is-equal (length data) 1 "Number of channels")
        (is-equal (set-exclusive-or (mapcar 'car c) channel-keys) nil "Channel keys")
        (is-equal (cdr (assoc :name c)) "#test" "Channel name"))
      (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type is JSON"))

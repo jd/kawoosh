@@ -205,5 +205,4 @@ LANGUAGE plpgsql;")
     ;; TODO remove this
     (execute "INSERT INTO users (name) VALUES ('jd');")
     (execute "INSERT INTO servers (name, address, ssl) VALUES ('Naquadah', 'irc.naquadah.org', true);")
-    (execute "WITH conn AS (INSERT INTO connection (server, username, nickname, realname) VALUES ('Naquadah', 'jd', 'jd', 'Julien Danjou') RETURNING id) INSERT INTO channels (connection, name) SELECT id, '#test' FROM conn;")
-    (execute "INSERT INTO channels (connection, name) SELECT id, '#test-bis' FROM connection WHERE username='jd' AND server='Naquadah';")))
+    (execute "WITH conn AS (INSERT INTO connection (server, username, nickname, realname) VALUES ('Naquadah', 'jd', 'jd', 'Julien Danjou') RETURNING id) INSERT INTO channels (connection, name) SELECT id, '#test' FROM conn;")))
