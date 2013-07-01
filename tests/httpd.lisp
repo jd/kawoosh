@@ -20,7 +20,7 @@
 
 ;; XXX Write as a fixture
 ;; XXX Add a check for Content-Type to factorize the code
-(defmacro with-request (req &rest body)
+(defmacro with-request (req &body body)
   `(multiple-value-bind (body status headers uri stream must-close reason-phrase)
        ,(if (listp req)
             `(http-request ,(cadr req)
