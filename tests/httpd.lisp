@@ -72,17 +72,24 @@
 (test
  httpd-user
  (with-fixture database ()
-   (with-fixture request ("http://localhost:4242/user/jd" :method :DELETE)
+   (with-fixture request ("http://localhost:4242/user/jd"
+                          :method :DELETE
+                          :expected-status-code 204)
      (is (equal nil (read-line stream nil))))
-   (with-fixture request ("http://localhost:4242/user")
+   (with-fixture request ("http://localhost:4242/user"
+                          :expected-status-code 204)
      (is (equal nil (read-line stream nil))))
-   (with-fixture request ("http://localhost:4242/user/jd" :method :PUT)
+   (with-fixture request ("http://localhost:4242/user/jd"
+                          :method :PUT)
      (is (equal '((:name . "jd")) (decode-json stream))))
    (with-fixture request ("http://localhost:4242/user")
      (is (equal '(((:name . "jd"))) (decode-json stream))))
-   (with-fixture request ("http://localhost:4242/user/jd" :method :DELETE)
+   (with-fixture request ("http://localhost:4242/user/jd"
+                          :method :DELETE
+                          :expected-status-code 204)
      (is (equal nil (read-line stream nil))))
-   (with-fixture request ("http://localhost:4242/user")
+   (with-fixture request ("http://localhost:4242/user"
+                          :expected-status-code 204)
      (is (equal nil (read-line stream nil))))
    (with-fixture request ("http://localhost:4242/user/foobar" :expected-status-code 404)
      (is (equal '((:status . "Not Found") (:message . "No such user")) (decode-json stream))))))
@@ -145,7 +152,8 @@
 (test
  http-user-channel
  (with-fixture database ()
-   (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah/channel")
+   (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah/channel"
+                          :expected-status-code 204)
      (is (equal nil (read-char stream nil))))
    (with-fixture worker ("jd" "Naquadah")
      (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah/channel/%23test"

@@ -42,7 +42,9 @@
        (list (encode-json-to-string data)))))
 
 (defun success-ok (&optional data)
-  (http-reply 200 data))
+  (if data
+      (http-reply 200 data)
+      (http-reply 204)))
 
 (defun success-accepted (message)
   (http-reply 202
