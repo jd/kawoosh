@@ -96,7 +96,10 @@
                                             (:select 'id :from 'connection
                                              :where (:= 'username username)))))))))
     (dolist (log logs)
-      (write-sequence (string-to-octets (encode-json-to-string log)) stream))))
+      ;; `encode-json' wants to use `write-char' which doesn't exist for a
+      ;; `chunga:chunked-io-stream'
+      (write-sequence (string-to-octets (encode-json-to-string log)) stream)
+      (write-sequence (string-to-octets "\r\n") stream))))
 
 ;; TODO ?from=<timestamp>
 (defrouted user-get-events (username)

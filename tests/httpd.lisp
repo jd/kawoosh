@@ -18,22 +18,19 @@
 
 (in-suite kawoosh.test.httpd)
 
-;; TODO move to util
-(defun decode-json-body (body)
-  (decode-json-from-string (flex:octets-to-string body)))
-
+;; XXX Write as a fixture
+;; XXX Add a check for Content-Type to factorize the code
 (defmacro with-request (req &rest body)
-  `(multiple-value-bind (body status headers)
+  `(multiple-value-bind (body status headers uri stream must-close reason-phrase)
        ,(if (listp req)
             `(http-request ,(cadr req)
+                           :want-stream t
                            :method ,(car req)
                            :content ,(caddr req))
-            `(http-request ,req))
-     (declare (special body status headers))
+            `(http-request ,req
+                           :want-stream t))
+     (declare (ignorable body status headers uri stream must-close reason-phrase))
      ,@body))
-
-(defmacro is-equal (a b &rest reason-args)
-  `(is (equal ,a ,b) ,@reason-args))
 
 (defvar channel-keys
   '(:name :password :modes :names :topic
@@ -45,179 +42,207 @@
   (&body)
   (kawoosh.dao:drop-tables))
 
-(def-fixture worker (username server channel)
+(def-fixture worker (username server)
   (let ((connection
           (with-pg-connection
               (car (select-dao 'connection (:and (:= 'username username)
                                                  (:= 'server server)))))))
     (assert connection nil "No such fixture connection")
     (let ((th (make-thread (lambda () (kawoosh.worker:start connection)))))
+      (defun worker-wait-for-join (channel)
+        (loop until (find channel
+                          (mapcar 'irc:normalized-name
+                                  (irc:channels (irc:user (connection-network-connection connection))))
+                          :test #'string=)
+              do (sleep 0.1)))
+      (defun worker-wait-for-part (channel)
+        (loop while (find channel
+                               (mapcar 'irc:normalized-name
+                                       (irc:channels (irc:user (connection-network-connection connection))))
+                               :test #'string=)
+              do (sleep 0.1)))
       ;; Wait for the connection to be established
-      (loop while (or (not (connection-network-connection connection))
-                      (not (irc:connectedp (connection-network-connection connection)))
-                      (and channel
-                           (not (irc:find-channel (connection-network-connection connection) channel))))
+      (loop until (connection-connected-p connection)
             do (sleep 0.1))
       (&body)
       (destroy-thread th))))
 
+
 (test
  httpd-user
  (with-fixture database ()
-   ;; TODO move at the end of this test when the data will be empty on startup
    (with-request (:delete "http://localhost:4242/user/jd")
-     (is (equal status 200) "Status code 200")
-     (is (equal body nil))
-     (is (equal (cdr (assoc :content-type headers)) "application/json")))
+     (is (equal 200 status))
+     (is (equal nil (read-line stream nil)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
    (with-request "http://localhost:4242/user"
-     (is (equal status 200) "Status code 200")
-     (is (equal body nil))
-     (is (equal (cdr (assoc :content-type headers)) "application/json")))
+     (is (equal 200 status))
+     (is (equal nil (read-line stream nil)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
    (with-request (:put "http://localhost:4242/user/jd")
-     (is (equal status 200) "Status code 200")
-     (is (equal (decode-json-body body) '((:name . "jd"))))
-     (is (equal (cdr (assoc :content-type headers)) "application/json")))
+     (is (equal 200 status))
+     (is (equal '((:name . "jd")) (decode-json stream)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
    (with-request "http://localhost:4242/user"
-     (is (equal status 200) "Status code 200")
-     (is (equal (decode-json-body body) '(((:name . "jd")))))
-     (is (equal (cdr (assoc :content-type headers)) "application/json")))
+     (is (equal 200 status))
+     (is (equal '(((:name . "jd"))) (decode-json stream)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
+   (with-request (:delete "http://localhost:4242/user/jd")
+     (is (equal 200 status))
+     (is (equal nil (read-line stream nil)))
+     (is (equal  "application/json" (cdr (assoc :content-type headers)))))
+   (with-request "http://localhost:4242/user"
+     (is (equal 200 status))
+     (is (equal nil (read-line stream nil)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
    (with-request
      "http://localhost:4242/user/foobar"
-     (is-equal status 404 "Status code 404")
-     (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such user")))
-     (is-equal (cdr (assoc :content-type headers)) "application/json"))))
+     (is (equal 404 status))
+     (is (equal '((:status . "Not Found") (:message . "No such user")) (decode-json stream)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))))
 
 (test
  httpd-user-events-retrieval
  (with-fixture database ()
-   (with-fixture worker ("jd" "Naquadah" "#test")
+   (with-fixture worker ("jd" "Naquadah")
      (with-request "http://localhost:4242/user/jd/events"
        (is (equal status 200))
-       (let ((event (decode-json-body body)))
-         (is (equal 5 (length event)))
+       (let ((event (decode-json-from-string (read-line stream nil))))
          (is (equal "NOTICE" (cdr (assoc :command event))))
          (is (equal "irc.naquadah.org" (cdr (assoc :source event)))))
-       (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type")))
+       (is (equal "application/json" (cdr (assoc :content-type headers))))))
    (with-request "http://localhost:4242/user/nosuchuser/events"
-     (is (equal status 404) "Status code")
-     (is (equal (cdr (assoc :content-type headers)) "application/json") "Content-type"))))
+     (is (equal 404 status))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))))
 
 (test
  httpd-server
  (with-fixture database ()
    (with-request "http://localhost:4242/server"
-     (is-equal status 200 "Status code 200")
-     (is-equal (decode-json-body body) '(((:name . "Naquadah")
-                                          (:address . "irc.naquadah.org")
-                                          (:port . 6667)
-                                          (:ssl . t))))
-     (is-equal (cdr (assoc :content-type headers)) "application/json"))
+     (is (equal 200 status))
+     (is (equal '(((:name . "Naquadah")
+                   (:address . "irc.naquadah.org")
+                   (:port . 6667)
+                   (:ssl . t)))
+                (decode-json stream) ))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
    (with-request
      "http://localhost:4242/server/Naquadah"
-     (is-equal status 200 "Status code 200")
-     (is-equal (decode-json-body body) '((:name . "Naquadah")
-                                         (:address . "irc.naquadah.org")
-                                         (:port . 6667)
-                                         (:ssl . t)))
-     (is-equal (cdr (assoc :content-type headers)) "application/json"))
+     (is (equal 200 status))
+     (is (equal '((:name . "Naquadah")
+                  (:address . "irc.naquadah.org")
+                  (:port . 6667)
+                  (:ssl . t))
+                (decode-json stream)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)) )))
    (with-request
      "http://localhost:4242/server/foobar"
-     (is-equal status 404 "Status code 404")
-     (is-equal (decode-json-body body) '((:status . "Not Found") (:message . "No such server")))
-     (is-equal (cdr (assoc :content-type headers)) "application/json"))))
+     (is (equal 404 status))
+     (is (equal '((:status . "Not Found") (:message . "No such server"))
+                (decode-json stream) ))
+     (is (equal "application/json"
+                (cdr (assoc :content-type headers)) )))))
 
 (test
  httpd-user-connection-list
  (with-fixture database ()
    (with-request
      "http://localhost:4242/user/jd/connection"
-     (is (equal status 200) "Status code 200")
-     (let* ((data (decode-json-body (symbol-value 'body)))
+     (is (equal 200 status))
+     (let* ((data (decode-json stream))
             (s (first data)))
-       (is-equal (length data) 1 "Number of connection")
-       (is-equal (set-exclusive-or (mapcar 'car s)
-                                   '(:server :username :nickname :current--nickname
-                                     :realname :connected :motd :network-connection))
-                 nil
-                 "Connection keys")
-       (is-equal (cdr (assoc :server s)) "Naquadah" "Server name")
-       (is-equal (cdr (assoc :realname s)) "Julien Danjou" "Realname")
-       (is-equal (cdr (assoc :nickname s)) "jd" "Nickname")
-       (is-equal (cdr (assoc :username s)) "jd" "Username"))
-     (is-equal (cdr (assoc :content-type headers)) "application/json"))
+       (is (equal 1 (length data)))
+       (is (equal nil
+                  (set-exclusive-or (mapcar 'car s)
+                                    '(:server :username :nickname :current--nickname
+                                      :realname :connected :motd :network-connection))))
+       (is (equal "Naquadah" (cdr (assoc :server s))))
+       (is (equal "Julien Danjou" (cdr (assoc :realname s))))
+       (is (equal "jd" (cdr (assoc :nickname s))))
+       (is (equal "jd" (cdr (assoc :username s)))))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
    (with-request
      "http://localhost:4242/user/jd/connection/Naquadah"
-     (is-equal status 200 "Status code 200")
-     (let* ((s (decode-json-body (symbol-value 'body))))
-       (is-equal (set-exclusive-or (mapcar 'car s)
-                                   '(:server :username :nickname :current--nickname
-                                     :realname :connected :motd :network-connection))
-                 nil
-                 "Connection keys")
-       (is-equal (cdr (assoc :server s)) "Naquadah" "Server name")
-       (is-equal (cdr (assoc :realname s)) "Julien Danjou" "Realname")
-       (is-equal (cdr (assoc :nickname s)) "jd" "Nickname")
-       (is-equal (cdr (assoc :username s)) "jd" "Username"))
-     (is-equal (cdr (assoc :content-type headers)) "application/json"))))
+     (is (equal 200 status))
+     (let* ((s (decode-json stream)))
+       (is (equal nil
+                  (set-exclusive-or (mapcar 'car s)
+                                    '(:server :username :nickname :current--nickname
+                                      :realname :connected :motd :network-connection))))
+       (is (equal  "Naquadah" (cdr (assoc :server s))))
+       (is (equal "Julien Danjou" (cdr (assoc :realname s))))
+       (is (equal "jd" (cdr (assoc :nickname s))))
+       (is (equal "jd" (cdr (assoc :username s)))))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))))
 
 (test
  http-user-channel
  (with-fixture database ()
    (with-request
      "http://localhost:4242/user/jd/connection/Naquadah/channel"
-     (is-equal status 200 "Status code 200")
-     (let* ((data (decode-json-body (symbol-value 'body)))
-            (c (car (decode-json-body (symbol-value 'body)))))
-       (is-equal (length data) 1 "Number of channels")
-       (is-equal (set-exclusive-or (mapcar 'car c) channel-keys) nil "Channel keys")
-       (is-equal (cdr (assoc :name c)) "#test" "Channel name"))
-     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type is JSON"))
-   (with-request
-     "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test"
-     (is-equal status 200 "Status code 200")
-     (let ((c (decode-json-body (symbol-value 'body))))
-       (is-equal (set-exclusive-or (mapcar 'car c) channel-keys) nil "Connection keys")
-       (is-equal (cdr (assoc :name c)) "#test" "Channel name"))
-     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content type is JSON"))
-   (with-request
-       (:put "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
-     (is-equal status 202 "Status code")
-     (is-equal (decode-json-body (symbol-value 'body))
-               '((:status . "OK") (:message . "Joining channel #test"))
-               "Message")
-     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content type is JSON"))
-   (with-request
-       (:put "http://localhost:4242/user/jd/connection/NoConnection/channel/%23test" "{}")
-     (is-equal status 404 "Status code")
-     (is-equal (decode-json-body (symbol-value 'body))
-               '((:status . "Not Found") (:message . "No such connection"))
-               "Error message")
-     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content type is JSON"))
-   (with-request
-       (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
-     (is-equal status 202 "Status code")
-     (is-equal (decode-json-body (symbol-value 'body))
-               '((:status . "OK") (:message . "Parting channel #test"))
-               "Message")
-     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))
-   (with-request
-       (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/foobar" "{}")
-     (is-equal status 404 "Status code")
-     (is-equal (decode-json-body (symbol-value 'body))
-               '((:status . "Not Found")
-                 (:message . "No such connection or channel not joined"))
-               "Error message")
-     (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type"))
-   (with-fixture worker ("jd" "Naquadah" "#test")
+     (is (equal 200 status))
+     (is (equal nil (read-char stream nil)))
+     (is (equal "application/json" (cdr (assoc :content-type headers)))))
+   (with-fixture worker ("jd" "Naquadah")
+     (with-request
+         (:put "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
+       (is (equal 202 status))
+       (is (equal '((:status . "OK") (:message . "Joining channel #test"))
+                  (decode-json stream)))
+       (is (equal "application/json" (cdr (assoc :content-type headers)))))
+     (worker-wait-for-join "#test")
+     (with-request
+         (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
+       (is (equal 202 status))
+       (is (equal '((:status . "OK") (:message . "Parting channel #test"))
+                  (decode-json stream)))
+       (is (equal  "application/json" (cdr (assoc :content-type headers)))))
+     (worker-wait-for-part "#test")
+     (with-request
+         (:put "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test" "{}")
+       (is (equal 202 status))
+       (is (equal '((:status . "OK") (:message . "Joining channel #test"))
+                  (decode-json stream)))
+       (is (equal "application/json" (cdr (assoc :content-type headers)))))
+     (worker-wait-for-join "#test")
+     (with-request
+       "http://localhost:4242/user/jd/connection/Naquadah/channel"
+       (is (equal 200 status))
+       (let* ((data (decode-json stream))
+              (c (car data )))
+         (is (equal 1 (length data)))
+         (is (equal nil (set-exclusive-or (mapcar 'car c) channel-keys)))
+         (is (equal "#test" (cdr (assoc :name c)))))
+       (is (equal "application/json" (cdr (assoc :content-type headers)))))
+     (with-request
+       "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test"
+       (is (equal 200 status))
+       (let ((c (decode-json stream)))
+         (is (equal nil (set-exclusive-or (mapcar 'car c) channel-keys)))
+         (is (equal "#test" (cdr (assoc :name c)))))
+       (is (equal "application/json" (cdr (assoc :content-type headers)))))
+     (with-request
+         (:put "http://localhost:4242/user/jd/connection/NoConnection/channel/%23test" "{}")
+       (is (equal 404 status))
+       (is (equal '((:status . "Not Found") (:message . "No such connection"))
+                  (decode-json stream)))
+       (is (equal  "application/json" (cdr (assoc :content-type headers)))))
+     (with-request
+         (:delete "http://localhost:4242/user/jd/connection/Naquadah/channel/foobar" "{}")
+       (is (equal 404 status))
+       (is (equal '((:status . "Not Found")
+                    (:message . "No such connection or channel not joined"))
+                  (decode-json stream)))
+       (is (equal  "application/json" (cdr (assoc :content-type headers)))))
      (with-request
        "http://localhost:4242/user/jd/connection/Naquadah/channel/%23test/events"
-       (is-equal status 200 "Status code")
-       (let* ((s (decode-json-body body))
+       (is (equal 200 status))
+       (let* ((s (decode-json stream))
               (event (nth 0 s)))
-         (is (equal (cdr (assoc :command event)) "JOIN"))
-         (is (equal (cdr (assoc :payload event)) nil))
-         (is (equal (cdr (assoc :target event)) "#test")))
-       (is-equal (cdr (assoc :content-type headers)) "application/json" "Content-type")))))
+         (is (equal "JOIN" (cdr (assoc :command event))))
+         (is (equal nil (cdr (assoc :payload event))))
+         (is (equal "#test" (cdr (assoc :target event)))))
+       (is (equal  "application/json" (cdr (assoc :content-type headers))))))))
 
 (test start-stop "Kawoosh httpd start and stop"
       (start)
