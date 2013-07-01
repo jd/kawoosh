@@ -187,7 +187,6 @@
                   (decode-json stream))))
      (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah/channel/foobar"
                             :method :DELETE
-                            :content "{}"
                             :expected-status-code 404)
        (is (equal '((:status . "Not Found")
                     (:message . "No such connection or channel not joined"))
