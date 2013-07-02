@@ -61,28 +61,33 @@
               `((status . "Bad Request")
                 (message . ,message))))
 
-(defmacro defrouted (name keys &rest body)
-  `(defun ,name (env)
-     (with-parameters env ,keys
-       (with-pg-connection
-         ,@body))))
+(defvar *routes* nil
+  "List of routes built into Kawoosh httpd.")
+
+(defmacro defrouted (method url name keys &body body)
+  `(progn
+     (defun ,name (env)
+       (with-parameters env ,keys
+         (with-pg-connection
+           ,@body)))
+     (push (list ',method ,url #',name) *routes*)))
 
 ;; TODO Limit to admin
 ;; TODO paginate?
-(defrouted user-list ()
+(defrouted GET "/user" user-list ()
   (success-ok (select-dao 'user)))
 
-(defrouted user-get (name)
+(defrouted GET "/user/:name" user-get (name)
   (let ((user (car (select-dao 'user (:= 'name name)))))
     (if user
         (success-ok user)
         (error-not-found "No such user"))))
 
-(defrouted user-put (username)
+(defrouted PUT "/user/:username" user-put (username)
   (let ((user (make-dao 'user :name username)))
     (success-ok user)))
 
-(defrouted user-delete (username)
+(defrouted DELETE "/user/:username" user-delete (username)
   (let ((user (get-dao 'user username)))
     (if user
         (progn
@@ -109,7 +114,7 @@
       (write-sequence (string-to-octets "\r\n") stream))))
 
 ;; TODO ?from=<timestamp>
-(defrouted user-get-events (username)
+(defrouted GET "/user/:username/events" user-get-events (username)
   (if (get-dao 'user username)
       `(200
         (:content-type "application/json"
@@ -118,16 +123,16 @@
       (error-not-found "No such user.")))
 
 ;; TODO paginate?
-(defrouted server-list ()
+(defrouted GET "/server" server-list ()
   (success-ok (select-dao 'server)))
 
-(defrouted server-get (name)
+(defrouted GET "/server/:name" server-get (name)
   (let ((server (car (select-dao 'server (:= 'name name)))))
     (if server
         (success-ok server)
         (error-not-found "No such server"))))
 
-(defrouted server-put (name)
+(defrouted PUT "/server/:name" server-put (name)
   (let* ((body (decode-json (getf env :raw-body)))
          (args (list :name name
                      :ssl (cdr (assoc :ssl body))
@@ -142,17 +147,17 @@
       (:no-error (inserted) (success-ok server)))))
 
 ;; TODO paginate?
-(defrouted connection-list (username)
+(defrouted GET "/user/:username/connection" connection-list (username)
   (success-ok (select-dao 'connection (:= 'username username))))
 
-(defrouted connection-get (username server)
+(defrouted GET "/user/:username/connection/:server" connection-get (username server)
   (let ((connection (car (select-dao 'connection (:and (:= 'username username)
                                                        (:= 'server server))))))
     (if connection
         (success-ok connection)
         (error-not-found "No such connection"))))
 
-(defrouted connection-put (username server)
+(defrouted PUT "/user/:username/connection/:server" connection-put (username server)
   (let* ((body (decode-json (getf env :raw-body)))
          (nickname (cdr (assoc :nickname body)))
          (connection (make-instance 'connection :username username
@@ -164,14 +169,15 @@
       (:no-error (inserted) (success-ok connection)))))
 
 ;; TODO paginate?
-(defrouted channel-list (username server)
+(defrouted GET "/user/:username/connection/:server/channel" channel-list (username server)
   (success-ok (select-dao 'channel (:= 'connection
                                        (:select 'id :from 'connection
                                         :where (:and (:= 'username username)
                                                      (:= 'server server)))))))
 
 ;; XXX check content-type?
-(defrouted channel-join (username server channel)
+;; TODO can also change mode + topic
+(defrouted PUT "/user/:username/connection/:server/channel/:channel" channel-join (username server channel)
   ;; XXX retrieve only id from connection
   (let ((connection (car (select-dao 'connection
                              (:and (:= 'username username)
@@ -184,7 +190,7 @@
         (error-not-found "No such connection"))))
 
 ;; XXX check content-type?
-(defrouted channel-part (username server channel)
+(defrouted DELETE "/user/:username/connection/:server/channel/:channel" channel-part (username server channel)
   ;; XXX retrieve only id from connection
   (let ((channel-dao (car (select-dao 'channel (:and (:= 'connection
                                                          (:select 'id :from 'connection
@@ -199,7 +205,7 @@
         (error-not-found "No such connection or channel not joined"))))
 
 ;; TODO paginate?
-(defrouted channel-get (username server channel)
+(defrouted GET "/user/:username/connection/:server/channel/:channel" channel-get (username server channel)
   (let ((channel (car (select-dao 'channel (:and (:= 'connection
                                                      (:select 'id :from 'connection
                                                       :where (:and (:= 'username username)
@@ -211,7 +217,7 @@
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
-(defrouted channel-get-events (username server channel)
+(defrouted GET "/user/:username/connection/:server/channel/:channel/events" channel-get-events (username server channel)
   (let ((logs (query-dao 'log-entry
                          (:limit
                           (:select 'time 'source 'command 'target 'payload
@@ -227,41 +233,25 @@
         (success-ok logs)
         (error-not-found "No such connection or channel"))))
 
-(defroutes app
-  (GET "/user" #'user-list)
-  (GET "/user/:name" #'user-get)
-  (PUT "/user/:username" #'user-put)
-  (DELETE "/user/:username" #'user-delete)
-  (GET "/user/:username/events" #'user-get-events)
 
-  (GET "/server" #'server-list)
-  (GET "/server/:name" #'server-get)
-  (PUT "/server/:name" #'server-put)
+;; TODO likely missing:
+;; (GET "/user/:username/connection/:server/events" #'connection-get-events) ; query log
+;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
 
-  (GET "/user/:username/connection" #'connection-list)
-  (GET "/user/:username/connection/:server" #'connection-get)
-  ;; (GET "/user/:username/connection/:server/events" #'connection-get-events) ; query log
-  (PUT "/user/:username/connection/:server" #'connection-put)
-  ;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
+;; (GET "/user/:username/connection/:server/user" #'ircuser-list)
+;; (GET "/user/:username/connection/:server/user/:ircuser" #'ircuser-get) ; whois
+;; (GET "/user/:username/connection/:server/user/:ircuser/events" #'ircuser-get-events) ; query log
+;; (POST "/user/:username/connection/:server/user/:ircuser/message" #'ircuser-get-events) ; privmsg
 
-  ;; (GET "/user/:username/connection/:server/user" #'ircuser-list)
-  ;; (GET "/user/:username/connection/:server/user/:ircuser" #'ircuser-get) ; whois
-  ;; (GET "/user/:username/connection/:server/user/:ircuser/events" #'ircuser-get-events) ; query log
-  ;; (POST "/user/:username/connection/:server/user/:ircuser/message" #'ircuser-get-events) ; privmsg
+;; (POST "/user/:username/connection/:server/channel/:channel/message" #'channel-send-message) ; privmsg
 
-  (GET "/user/:username/connection/:server/channel" #'channel-list)
-  (GET "/user/:username/connection/:server/channel/:channel" #'channel-get)
-  (PUT "/user/:username/connection/:server/channel/:channel" #'channel-join) ; TODO can also change mode + topic
-  (DELETE "/user/:username/connection/:server/channel/:channel" #'channel-part)
+;; (GET "/user/:username/connection/:server/channel/:channel/users" #'channel-list-users) ; whois list
+;; (GET "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-get-user) ; retrieve whois
+;; (PUT "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-put-user) ; change mode
+;; (DELETE "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-delete-user) ; kick
 
-  (GET "/user/:username/connection/:server/channel/:channel/events" #'channel-get-events)
-  ;; (POST "/user/:username/connection/:server/channel/:channel/message" #'channel-send-message) ; privmsg
 
-  ;; (GET "/user/:username/connection/:server/channel/:channel/users" #'channel-list-users) ; whois list
-  ;; (GET "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-get-user) ; retrieve whois
-  ;; (PUT "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-put-user) ; change mode
-  ;; (DELETE "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-delete-user) ; kick
-  )
+(eval (macroexpand `(defroutes app ,@*routes*)))
 
 (defvar *httpd* nil
   "The running httpd handler.")
