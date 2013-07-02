@@ -102,6 +102,15 @@
                            :method :PUT
                            :content (encode-json-to-string '((:name . "jd"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/server/Naquadah"
+                           :method :PUT
+                           :content (encode-json-to-string '((:address . "irc.naquadah.org")
+                                                             (:ssl . t))))
+      (is (equal '((:name . "Naquadah")
+                   (:address . "irc.naquadah.org")
+                   (:port . 6667)
+                   (:ssl . t))
+                 (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))
@@ -123,6 +132,15 @@
 
 (def-test httpd-server ()
   (with-fixture database ()
+    (with-fixture request ("http://localhost:4242/server/Naquadah"
+                           :method :PUT
+                           :content (encode-json-to-string '((:address . "irc.naquadah.org")
+                                                             (:ssl . t))))
+      (is (equal '((:name . "Naquadah")
+                   (:address . "irc.naquadah.org")
+                   (:port . 6667)
+                   (:ssl . t))
+                 (decode-json stream))))
     (with-fixture request ("http://localhost:4242/server")
       (is (equal '(((:name . "Naquadah")
                     (:address . "irc.naquadah.org")
@@ -145,6 +163,15 @@
                            :method :PUT
                            :content (encode-json-to-string '((:name . "jd"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/server/Naquadah"
+                           :method :PUT
+                           :content (encode-json-to-string '((:address . "irc.naquadah.org")
+                                                             (:ssl . t))))
+      (is (equal '((:name . "Naquadah")
+                   (:address . "irc.naquadah.org")
+                   (:port . 6667)
+                   (:ssl . t))
+                 (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))
@@ -186,6 +213,15 @@
                            :method :PUT
                            :content (encode-json-to-string '((:name . "jd"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/server/Naquadah"
+                           :method :PUT
+                           :content (encode-json-to-string '((:address . "irc.naquadah.org")
+                                                             (:ssl . t))))
+      (is (equal '((:name . "Naquadah")
+                   (:address . "irc.naquadah.org")
+                   (:port . 6667)
+                   (:ssl . t))
+                 (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))

@@ -127,6 +127,20 @@
         (success-ok server)
         (error-not-found "No such server"))))
 
+(defrouted server-put (name)
+  (let* ((body (decode-json (getf env :raw-body)))
+         (args (list :name name
+                     :ssl (cdr (assoc :ssl body))
+                     :address (cdr (assoc :address body))))
+         (port (cdr (assoc :port body)))
+         (server (apply #'make-instance 'server
+                        (if port (append args (list :port port)) args))))
+    (handler-case
+        (save-dao server)
+      ;; TODO more detailed errors
+      (error () (error-bad-request "Invalid server details"))
+      (:no-error (inserted) (success-ok server)))))
+
 ;; TODO paginate?
 (defrouted connection-list (username)
   (success-ok (select-dao 'connection (:= 'username username))))
@@ -222,6 +236,7 @@
 
   (GET "/server" #'server-list)
   (GET "/server/:name" #'server-get)
+  (PUT "/server/:name" #'server-put)
 
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
