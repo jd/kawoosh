@@ -208,7 +208,7 @@ If last is not nil, put the hook in the last run ones."
 
 (defun connection-run (connection)
   "Connect to the connection."
-  (let ((server (car (select-dao 'server (:= 'name (connection-server connection))))))
+  (let ((server (get-dao 'server (connection-server connection))))
     (setf (connection-network-connection connection)
           (irc:connect :server (format nil "~a" (server-address server))
                        :port (server-port server)
