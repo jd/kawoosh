@@ -33,7 +33,7 @@ If last is not nil, put the hook in the last run ones."
              (funcall hook connection msg))))
 
 (defun connection-log-msg (connection msg)
-  (postmodern:execute
+  (execute
    "INSERT INTO logs (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
    (connection-id connection)
    (irc-message-received-timestamp msg)
@@ -48,11 +48,11 @@ If last is not nil, put the hook in the last run ones."
     (declare (ignore welcome-msg))
     (setf (connection-current-nickname connection) nickname))
   (setf (connection-connected-p connection) t)
-  (postmodern:update-dao connection)
+  (update-dao connection)
 
   ;; Join channels
   (let ((network-connection (connection-network-connection connection)))
-    (loop for channel in (postmodern:select-dao 'channel (:= 'connection (connection-id connection)))
+    (loop for channel in (select-dao 'channel (:= 'connection (connection-id connection)))
           do (irc:join network-connection
                        (channel-name channel)
                        :password (channel-password channel))
@@ -73,7 +73,7 @@ If last is not nil, put the hook in the last run ones."
 (defun connection-handle-rpl_endofmotd (connection msg)
   (destructuring-bind (target text) (irc:arguments msg)
     (declare (ignore target text))
-    (postmodern:update-dao connection)))
+    (update-dao connection)))
 
 
 (defun channel-update-names (connection channel)
@@ -83,7 +83,7 @@ If last is not nil, put the hook in the last run ones."
                      collect (irc-user-serialize user))))
     (setf (channel-names channel)
           (if users (list->array users) :null))
-    (postmodern:update-dao channel)))
+    (update-dao channel)))
 
 (defun irc-channel-serialize-mode (channel)
   (loop for (mode raw-value) on (irc:modes channel) by #'cddr
@@ -107,35 +107,35 @@ If last is not nil, put the hook in the last run ones."
           (if modes
               (list->array modes)
               :null)))
-  (postmodern:update-dao channel))
+  (update-dao channel))
 
 (defun connection-handle-join (connection msg)
   (destructuring-bind (channel-name) (irc:arguments msg)
     (if (irc:self-message-p msg)
         (save-dao (make-instance 'channel :connection (connection-id connection) :name channel-name
                                           :joined-at (irc-message-received-timestamp msg)))
-        (channel-update-names connection (channel-find connection channel-name)))))
+        (channel-update-names connection (get-dao 'channel (connection-id connection) channel-name)))))
 
 (defun connection-handle-part (connection msg)
   (destructuring-bind (channel-name &optional text) (irc:arguments msg)
     (declare (ignore text))
-    (if (irc:self-message-p msg)
-        (let ((channel (channel-find connection channel-name)))
+    (let ((channel (get-dao 'channel (connection-id connection) channel-name)))
+      (if (irc:self-message-p msg)
           (when channel
-            (delete-dao channel)))
-        (channel-update-names connection (channel-find connection channel-name)))))
+            (delete-dao channel))
+          (channel-update-names connection channel)))))
 
 (defun connection-handle-quit (connection msg)
   (declare (ignore msg))
   ;; TODO this can be optimized by only iterating on channels that have the
   ;; user (aka `(irc:source msg)') in the channel.names array.
-  (dolist (channel (postmodern:select-dao 'channel (:= 'connection (connection-id connection))))
+  (dolist (channel (select-dao 'channel (:= 'connection (connection-id connection))))
     (channel-update-names connection channel)))
 
 (defun connection-handle-rpl_endofnames (connection msg)
   (destructuring-bind (nickname channel-name text) (irc:arguments msg)
     (declare (ignore nickname text))
-    (let ((channel (channel-find connection channel-name)))
+    (let ((channel (get-dao 'channel (connection-id connection) channel-name)))
       ;; TODO only one DAO update please
       (channel-update-names connection channel)
       (channel-update-mode connection channel))))
@@ -143,29 +143,31 @@ If last is not nil, put the hook in the last run ones."
 (defun connection-handle-rpl_channelmodeis (connection msg)
   (destructuring-bind (target channel &rest mode-arguments) (irc:arguments msg)
     (declare (ignore target mode-arguments))
-    (channel-update-mode connection (channel-find connection channel))))
+    (channel-update-mode connection (get-dao 'channel (connection-id connection) channel))))
 
 (defun connection-handle-mode (connection msg)
   (destructuring-bind (target &rest mode-arguments) (irc:arguments msg)
     (declare (ignore mode-arguments))
-    (let ((channel (channel-find connection target)))
+    (let ((channel (get-dao 'channel (connection-id connection) target)))
       (when channel
         (channel-update-mode connection channel)))))
 
 (defun connection-handle-rpl_topic (connection msg)
   (destructuring-bind (target channel-name &optional topic) (irc:arguments msg)
     (declare (ignore target))
-    (let ((channel (channel-find connection channel-name)))
-      (setf (channel-topic channel) topic)
-      (postmodern:update-dao channel))))
+    (let ((channel (get-dao 'channel (connection-id connection) channel-name)))
+      (when channel
+        (setf (channel-topic channel) topic)
+        (update-dao channel)))))
 
 (defun connection-handle-topic (connection msg)
   (destructuring-bind (channel-name &optional topic) (irc:arguments msg)
-    (let ((channel (channel-find connection channel-name)))
-      (setf (channel-topic channel) topic)
-      (setf (channel-topic-who channel) (irc:source msg))
-      (setf (channel-topic-time channel) (irc-message-received-timestamp msg))
-      (postmodern:update-dao channel))))
+    (let ((channel (get-dao 'channel (connection-id connection) channel-name)))
+      (when channel
+        (setf (channel-topic channel) topic)
+        (setf (channel-topic-who channel) (irc:source msg))
+        (setf (channel-topic-time channel) (irc-message-received-timestamp msg))
+        (update-dao channel)))))
 
 (defun unix-time->timestamp (unix-time)
   (simple-date:universal-time-to-timestamp
@@ -175,24 +177,26 @@ If last is not nil, put the hook in the last run ones."
 (defun connection-handle-rpl_topicwhotime (connection msg)
   (destructuring-bind (target channel-name who time) (irc:arguments msg)
     (declare (ignore target))
-    (let ((channel (channel-find connection channel-name)))
-      (setf (channel-topic-who channel) who)
-      (setf (channel-topic-time channel) (unix-time->timestamp (parse-integer time)))
-      (postmodern:update-dao channel))))
+    (let ((channel (get-dao 'channel (connection-id connection) channel-name)))
+      (when channel
+        (setf (channel-topic-who channel) who)
+        (setf (channel-topic-time channel) (unix-time->timestamp (parse-integer time)))
+        (update-dao channel)))))
 
 (defun connection-handle-rpl_creationtime (connection msg)
   (destructuring-bind (target channel-name time) (irc:arguments msg)
     (declare (ignore target))
-    (let ((channel (channel-find connection channel-name)))
-      (setf (channel-creation-time channel)
-            (unix-time->timestamp (parse-integer time)))
-      (postmodern:update-dao channel))))
+    (let ((channel (get-dao (connection-id connection) channel-name)))
+      (when channel
+        (setf (channel-creation-time channel)
+              (unix-time->timestamp (parse-integer time)))
+        (update-dao channel)))))
 
 (defun connection-handle-nick (connection msg)
   "Handle nick change."
   (destructuring-bind (new-nick) (irc:arguments msg)
     (setf (connection-current-nickname connection) new-nick))
-  (postmodern:update-dao connection))
+  (update-dao connection))
 
 (defun connection-handle-err_nicknameinuse-message (connection msg)
   "Handle nick already in used error."
@@ -204,7 +208,7 @@ If last is not nil, put the hook in the last run ones."
 
 (defun connection-run (connection)
   "Connect to the connection."
-  (let ((server (car (postmodern:select-dao 'server (:= 'name (connection-server connection))))))
+  (let ((server (car (select-dao 'server (:= 'name (connection-server connection))))))
     (setf (connection-network-connection connection)
           (irc:connect :server (format nil "~a" (server-address server))
                        :port (server-port server)
@@ -216,16 +220,16 @@ If last is not nil, put the hook in the last run ones."
   (setf (connection-current-nickname connection) :null)
   (setf (connection-connected-p connection) nil)
   (setf (connection-motd connection) :null)
-  (postmodern:update-dao connection)
+  (update-dao connection)
 
-  (dolist (channel (postmodern:select-dao 'channel (:= 'connection (connection-id connection))))
+  (dolist (channel (select-dao 'channel (:= 'connection (connection-id connection))))
     (setf (channel-names channel) :null)
     (setf (channel-modes channel) :null)
     (setf (channel-topic channel) :null)
     (setf (channel-topic-who channel) :null)
     (setf (channel-topic-time channel) :null)
     (setf (channel-creation-time channel) :null)
-    (postmodern:update-dao channel))
+    (update-dao channel))
 
   (connection-add-hook connection
                        'irc:irc-err_nicknameinuse-message
@@ -274,7 +278,7 @@ If last is not nil, put the hook in the last run ones."
 
 (defun pick-connection ()
   (with-pg-connection
-    (car (postmodern:select-dao 'connection "true LIMIT 1"))))
+    (car (select-dao 'connection "true LIMIT 1"))))
 
 (defun start (&optional connection)
   (let ((connection (or connection (pick-connection))))

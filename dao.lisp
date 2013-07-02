@@ -31,7 +31,6 @@
            connection-connected-p
            connection-motd
            connection-network-connection
-           channel-find
            channel-connection
            channel-name
            channel-password
@@ -137,11 +136,6 @@ O to STREAM (or to *JSON-OUTPUT*)."
   `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
      (postmodern:execute "SET TIMEZONE='UTC'")
      ,@body))
-
-(defun channel-find (connection channel-name)
-  (with-pg-connection
-      (car (select-dao 'channel (:and (:= 'name channel-name)
-                                      (:= 'connection (connection-id connection)))))))
 
 (defun drop-tables ()
   (with-pg-connection

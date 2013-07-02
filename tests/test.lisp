@@ -52,10 +52,12 @@
     (assert connection nil "No such fixture connection")
     (let ((th (make-thread (lambda () (kawoosh.worker:start connection)))))
       (defun worker-wait-for-join (channel)
-        (loop until (channel-find connection channel)
+        (loop until (with-pg-connection
+                        (get-dao 'channel (connection-id connection) channel))
               do (sleep 0.1)))
       (defun worker-wait-for-part (channel)
-        (loop while (channel-find connection channel)
+        (loop while (with-pg-connection
+                        (get-dao 'channel (connection-id connection) channel))
               do (sleep 0.1)))
       ;; Wait for the connection to be established
       (loop until (connection-connected-p connection)
