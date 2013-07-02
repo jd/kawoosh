@@ -71,6 +71,10 @@
 (def-test httpd-user ()
   (with-fixture database ()
     (with-fixture request ("http://localhost:4242/user/jd"
+                           :method :PUT
+                           :content (encode-json-to-string '((:name . "jd"))))
+      (is (equal '((:name . "jd")) (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/user/jd"
                            :method :DELETE
                            :expected-status-code 204)
       (is (equal nil (read-line stream nil))))
@@ -94,6 +98,10 @@
 
 (def-test httpd-user-events-retrieval ()
   (with-fixture database ()
+    (with-fixture request ("http://localhost:4242/user/jd"
+                           :method :PUT
+                           :content (encode-json-to-string '((:name . "jd"))))
+      (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))
@@ -133,6 +141,10 @@
 
 (def-test httpd-user-connection ()
   (with-fixture database ()
+    (with-fixture request ("http://localhost:4242/user/jd"
+                           :method :PUT
+                           :content (encode-json-to-string '((:name . "jd"))))
+      (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))
@@ -170,6 +182,10 @@
 
 (def-test http-user-channel ()
   (with-fixture database ()
+    (with-fixture request ("http://localhost:4242/user/jd"
+                           :method :PUT
+                           :content (encode-json-to-string '((:name . "jd"))))
+      (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))

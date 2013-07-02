@@ -203,5 +203,4 @@ $lower_address$
 LANGUAGE plpgsql;")
     (execute "CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();")
     ;; TODO remove this
-    (execute "INSERT INTO users (name) VALUES ('jd');")
     (execute "INSERT INTO servers (name, address, ssl) VALUES ('Naquadah', 'irc.naquadah.org', true);")))
