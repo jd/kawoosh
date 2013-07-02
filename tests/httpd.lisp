@@ -2,7 +2,6 @@
   (:use bordeaux-threads
         cl
         cl-json
-        clack.test
         drakma
         kawoosh.dao
         kawoosh.httpd
