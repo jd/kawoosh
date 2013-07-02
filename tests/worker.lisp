@@ -70,7 +70,7 @@
       (worker-wait-for-join "#test")
       (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah/channel")
         (let* ((data (decode-json stream))
-               (c (car data )))
+               (c (car data)))
           (is (equal 1 (length data)))
           (is (equal nil (set-exclusive-or (mapcar 'car c) channel-keys)))
           (is (equal "#test" (cdr (assoc :name c))))))
