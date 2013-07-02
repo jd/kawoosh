@@ -19,7 +19,7 @@
 
 (defvar channel-keys
   '(:name :password :modes :names :topic :joined-at
-    :topic--who :topic--time :creation--time))
+    :topic-who :topic-time :creation-time))
 
 (def-fixture request (url &key
                           (expected-content-type "application/json")
@@ -111,7 +111,7 @@
       (let ((s (decode-json stream)))
         (is (equal nil
                    (set-exclusive-or (mapcar 'car s)
-                                     '(:server :username :nickname :current--nickname
+                                     '(:server :username :nickname :current-nickname
                                        :realname :connected :motd :network-connection))))
         (is (equal "Naquadah" (cdr (assoc :server s))))
         (is (equal "jd" (cdr (assoc :realname s))))
@@ -172,7 +172,7 @@
       (let ((s (decode-json stream)))
         (is (equal nil
                    (set-exclusive-or (mapcar 'car s)
-                                     '(:server :username :nickname :current--nickname
+                                     '(:server :username :nickname :current-nickname
                                        :realname :connected :motd :network-connection))))
         (is (equal "Naquadah" (cdr (assoc :server s))))
         (is (equal "jd" (cdr (assoc :realname s))))
@@ -184,7 +184,7 @@
         (is (equal 1 (length data)))
         (is (equal nil
                    (set-exclusive-or (mapcar 'car s)
-                                     '(:server :username :nickname :current--nickname
+                                     '(:server :username :nickname :current-nickname
                                        :realname :connected :motd :network-connection))))
         (is (equal "Naquadah" (cdr (assoc :server s))))
         (is (equal "jd" (cdr (assoc :realname s))))
@@ -194,7 +194,7 @@
       (let ((s (decode-json stream)))
         (is (equal nil
                    (set-exclusive-or (mapcar 'car s)
-                                     '(:server :username :nickname :current--nickname
+                                     '(:server :username :nickname :current-nickname
                                        :realname :connected :motd :network-connection))))
         (is (equal "Naquadah" (cdr (assoc :server s))))
         (is (equal "jd" (cdr (assoc :realname s))))
@@ -222,7 +222,7 @@
       (let ((s (decode-json stream)))
         (is (equal nil
                    (set-exclusive-or (mapcar 'car s)
-                                     '(:server :username :nickname :current--nickname
+                                     '(:server :username :nickname :current-nickname
                                        :realname :connected :motd :network-connection))))
         (is (equal "Naquadah" (cdr (assoc :server s))))
         (is (equal "jd" (cdr (assoc :realname s))))
