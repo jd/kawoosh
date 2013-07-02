@@ -56,6 +56,11 @@
               `((status . "Not Found")
                 (message . ,message))))
 
+(defun error-bad-request (message)
+  (http-reply 400
+              `((status . "Bad Request")
+                (message . ,message))))
+
 (defmacro defrouted (name keys &rest body)
   `(defun ,name (env)
      (with-parameters env ,keys
@@ -132,6 +137,17 @@
     (if connection
         (success-ok connection)
         (error-not-found "No such connection"))))
+
+(defrouted connection-put (username server)
+  (let* ((body (decode-json (getf env :raw-body)))
+         (nickname (cdr (assoc :nickname body)))
+         (connection (make-instance 'connection :username username
+                                                :nickname nickname
+                                                :server server)))
+    (handler-case
+        (save-dao connection)
+      (error () (error-bad-request "Invalid connection details"))
+      (:no-error (inserted) (success-ok connection)))))
 
 ;; TODO paginate?
 (defrouted channel-list (username server)
@@ -210,7 +226,7 @@
   (GET "/user/:username/connection" #'connection-list)
   (GET "/user/:username/connection/:server" #'connection-get)
   ;; (GET "/user/:username/connection/:server/events" #'connection-get-events) ; query log
-  ;; (PUT "/user/:username/connection/:server" #'connection-put) ; connect (insert into connection)
+  (PUT "/user/:username/connection/:server" #'connection-put)
   ;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
 
   ;; (GET "/user/:username/connection/:server/user" #'ircuser-list)
