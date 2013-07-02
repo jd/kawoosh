@@ -18,7 +18,7 @@
 (in-suite kawoosh.test.httpd)
 
 (defvar channel-keys
-  '(:name :password :modes :names :topic
+  '(:name :password :modes :names :topic :joined-at
     :topic--who :topic--time :creation--time))
 
 (def-fixture request (url &key
@@ -50,16 +50,10 @@
     (assert connection nil "No such fixture connection")
     (let ((th (make-thread (lambda () (kawoosh.worker:start connection)))))
       (defun worker-wait-for-join (channel)
-        (loop until (find channel
-                          (mapcar 'irc:normalized-name
-                                  (irc:channels (irc:user (connection-network-connection connection))))
-                          :test #'string=)
+        (loop until (channel-find connection channel)
               do (sleep 0.1)))
       (defun worker-wait-for-part (channel)
-        (loop while (find channel
-                          (mapcar 'irc:normalized-name
-                                  (irc:channels (irc:user (connection-network-connection connection))))
-                          :test #'string=)
+        (loop while (channel-find connection channel)
               do (sleep 0.1)))
       ;; Wait for the connection to be established
       (loop until (connection-connected-p connection)
@@ -245,6 +239,10 @@
         (is (equal '((:status . "OK") (:message . "Joining channel #test"))
                    (decode-json stream))))
       (worker-wait-for-join "#test")
+      (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah/channel/%23test")
+        (let ((channel (decode-json stream)))
+          (is (equal "#test" (cdr (assoc :name channel))))
+          (is (not (equal nil (cdr (assoc :joined-at channel)))))))
       (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah/channel/%23test"
                              :method :DELETE
                              :content "{}"

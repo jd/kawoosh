@@ -31,9 +31,11 @@
            connection-connected-p
            connection-motd
            connection-network-connection
+           channel-find
            channel-connection
            channel-name
            channel-password
+           channel-joined-at
            channel-names
            channel-modes
            channel-topic
@@ -98,6 +100,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
    (password :col-type text :accessor channel-password)
    (names :col-type text[] :accessor channel-names)
    (modes :col-type text[] :accessor channel-modes)
+   (joined-at :col-type timestamp :initarg :joined-at :accessor channel-joined-at)
    (topic :col-type text :accessor channel-topic)
    (topic_who :col-type text :accessor channel-topic-who)
    (topic_time :col-type timestamp :accessor channel-topic-time)
@@ -135,6 +138,11 @@ O to STREAM (or to *JSON-OUTPUT*)."
      (postmodern:execute "SET TIMEZONE='UTC'")
      ,@body))
 
+(defun channel-find (connection channel-name)
+  (with-pg-connection
+      (car (select-dao 'channel (:and (:= 'name channel-name)
+                                      (:= 'connection (connection-id connection)))))))
+
 (defun drop-tables ()
   (with-pg-connection
     (dolist (table-name '(logs channels connection servers users))
@@ -168,6 +176,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
 	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\\x07\\x13\\x10]'),
         -- XXX update password when modes is updated for password
 	password text,
+        joined_at timestamp,
         names text[],
         modes text[],
         topic text,

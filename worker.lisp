@@ -109,15 +109,11 @@ If last is not nil, put the hook in the last run ones."
               :null)))
   (postmodern:update-dao channel))
 
-(defun channel-find (connection channel-name)
-  (car (postmodern:select-dao 'channel (:and (:= 'name channel-name)
-                                             (:= 'connection (connection-id connection))))))
-
 (defun connection-handle-join (connection msg)
   (destructuring-bind (channel-name) (irc:arguments msg)
     (if (irc:self-message-p msg)
-        (unless (channel-find connection channel-name)
-          (make-dao 'channel :connection (connection-id connection) :name channel-name))
+        (save-dao (make-instance 'channel :connection (connection-id connection) :name channel-name
+                                          :joined-at (irc-message-received-timestamp msg)))
         (channel-update-names connection (channel-find connection channel-name)))))
 
 (defun connection-handle-part (connection msg)
