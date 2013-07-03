@@ -189,8 +189,12 @@ O to STREAM (or to *JSON-OUTPUT*)."
 	payload text
 );")
     (execute "CREATE TABLE reply (
+	id integer PRIMARY KEY DEFAULT nextval('logs_id_seq'),
+	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
 ) INHERITS (logs);")
     (execute "CREATE TABLE error (
+	id integer PRIMARY KEY DEFAULT nextval('logs_id_seq'),
+	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
 ) INHERITS (logs);")
     ;; Lower and trim channels.name on insertion
     (execute "CREATE OR REPLACE FUNCTION lower_name() RETURNS trigger AS $lower_name$
