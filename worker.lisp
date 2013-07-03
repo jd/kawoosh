@@ -32,9 +32,9 @@ If last is not nil, put the hook in the last run ones."
            (lambda (msg)
              (funcall hook connection msg))))
 
-(defun connection-log-msg (connection msg)
+(defun connection-log-reply (connection msg)
   (execute
-   "INSERT INTO logs (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
+   "INSERT INTO reply (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
    (connection-id connection)
    (irc-message-received-timestamp msg)
    (irc:source msg)
@@ -255,10 +255,11 @@ If last is not nil, put the hook in the last run ones."
   (connection-add-hook connection 'irc:irc-rpl_motd-message #'connection-handle-rpl_motd)
   (connection-add-hook connection 'irc:irc-rpl_endofmotd-message #'connection-handle-rpl_endofmotd)
   (connection-add-hook connection 'irc:irc-nick-message #'connection-handle-nick)
+  ;; TODO log all err_ messages into logs or into an error table
   (dolist (msg-type '(privmsg notice kick topic error mode nick join part quit kill invite))
     (connection-add-hook connection
                          (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC")
-                         #'connection-log-msg))
+                         #'connection-log-reply))
 
   ;; Endless loop starts here
   (irc:read-message-loop (connection-network-connection connection)))

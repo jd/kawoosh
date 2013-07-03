@@ -139,7 +139,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
 (defun drop-tables ()
   (with-pg-connection
-    (dolist (table-name '(logs channels connection servers users))
+    (dolist (table-name '(reply error logs channels connection servers users))
       (execute (:drop-table :if-exists table-name)))))
 
 (defun create-tables ()
@@ -188,6 +188,10 @@ O to STREAM (or to *JSON-OUTPUT*)."
 	target text NOT NULL,
 	payload text
 );")
+    (execute "CREATE TABLE reply (
+) INHERITS (logs);")
+    (execute "CREATE TABLE error (
+) INHERITS (logs);")
     ;; Lower and trim channels.name on insertion
     (execute "CREATE OR REPLACE FUNCTION lower_name() RETURNS trigger AS $lower_name$
 BEGIN
