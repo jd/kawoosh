@@ -32,16 +32,6 @@ If last is not nil, put the hook in the last run ones."
            (lambda (msg)
              (funcall hook connection msg))))
 
-(defun connection-log-reply (connection msg)
-  (execute
-   "INSERT INTO reply (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
-   (connection-id connection)
-   (irc-message-received-timestamp msg)
-   (irc:source msg)
-   (irc:command msg)
-   (car (irc:arguments msg))
-   (or (cadr (irc:arguments msg)) :null)))
-
 (defun connection-handle-rpl_welcome (connection msg)
   ;; This is at least needed to store and update current-nickname
   (destructuring-bind (nickname welcome-msg) (irc:arguments msg)
@@ -206,11 +196,15 @@ If last is not nil, put the hook in the last run ones."
     (irc:nick (connection-network-connection connection)
                  (format nil "~a_" tried-nickname))))
 
+(defclass irc-connection (irc:connection)
+  nil)
+
 (defun connection-run (connection)
   "Connect to the connection."
   (let ((server (get-dao 'server (connection-server connection))))
     (setf (connection-network-connection connection)
           (irc:connect :server (format nil "~a" (server-address server))
+                       :connection-type 'irc-connection
                        :port (server-port server)
                        :nickname (connection-nickname connection)
                        :connection-security (if (server-ssl-p server) :ssl :none)
@@ -255,11 +249,23 @@ If last is not nil, put the hook in the last run ones."
   (connection-add-hook connection 'irc:irc-rpl_motd-message #'connection-handle-rpl_motd)
   (connection-add-hook connection 'irc:irc-rpl_endofmotd-message #'connection-handle-rpl_endofmotd)
   (connection-add-hook connection 'irc:irc-nick-message #'connection-handle-nick)
-  ;; TODO log all err_ messages into logs or into an error table
-  (dolist (msg-type '(privmsg notice kick topic error mode nick join part quit kill invite))
-    (connection-add-hook connection
-                         (intern (format nil "IRC-~a-MESSAGE" msg-type) "IRC")
-                         #'connection-log-reply))
+
+  (defmethod irc:irc-message-event ((irc-connection (eql (connection-network-connection connection)))
+                                    (message irc:irc-message))
+    (execute
+     (format
+      nil
+      "INSERT INTO ~a (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
+      (if (string= (irc:command message) "ERR" :end1 3)
+          "error"
+          "reply"))
+     (connection-id connection)
+     (irc-message-received-timestamp message)
+     (irc:source message)
+     (irc:command message)
+     (car (irc:arguments message))
+     (or (cadr (irc:arguments message)) :null))
+    (call-next-method))
 
   ;; Endless loop starts here
   (irc:read-message-loop (connection-network-connection connection)))
