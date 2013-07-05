@@ -30,6 +30,7 @@
                           (content nil))
   (multiple-value-bind (body status-code headers uri stream must-close reason-phrase)
       (http-request url
+                    :basic-authorization '("admin" "admin")
                     :want-stream t
                     :method method
                     :content content)

@@ -17,28 +17,19 @@
 (def-test httpd-user ()
   (with-fixture database ()
     (with-fixture request ("http://localhost:4242/user/jd"
-                           :method :PUT
-                           :content (encode-json-to-string '((:name . "jd"))))
-      (is (equal '((:name . "jd")) (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user/jd"
-                           :method :DELETE
-                           :expected-status-code 204)
-      (is (equal nil (read-line stream nil))))
-    (with-fixture request ("http://localhost:4242/user"
-                           :expected-status-code 204)
-      (is (equal nil (read-line stream nil))))
-    (with-fixture request ("http://localhost:4242/user/jd"
                            :method :PUT)
       (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user")
-      (is (equal '(((:name . "jd"))) (decode-json stream))))
+      (is (equal '(((:name . "admin"))
+                   ((:name . "jd")))
+                 (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/jd"
                            :method :DELETE
                            :expected-status-code 204)
       (is (equal nil (read-line stream nil))))
-    (with-fixture request ("http://localhost:4242/user"
-                           :expected-status-code 204)
-      (is (equal nil (read-line stream nil))))
+    (with-fixture request ("http://localhost:4242/user")
+      (is (equal '(((:name . "admin")))
+                 (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user/foobar" :expected-status-code 404)
       (is (equal '((:status . "Not Found") (:message . "No such user")) (decode-json stream))))))
 
@@ -152,9 +143,3 @@
         (is (equal "jd" (cdr (assoc :realname s))))
         (is (equal "jd" (cdr (assoc :nickname s))))
         (is (equal "jd" (cdr (assoc :username s))))))))
-
-(def-test start-stop ()
-  "Kawoosh httpd start and stop"
-  (start)
-  (stop)
-  (stop (start)))

@@ -10,6 +10,7 @@
                #:simple-date
                #:clack
                #:clack-app-route
+               #:clack-middleware-auth-basic
                #:cl-json
                #:usocket)
   :components

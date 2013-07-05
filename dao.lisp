@@ -212,4 +212,5 @@ BEGIN
 END;
 $lower_address$
 LANGUAGE plpgsql;")
-    (execute "CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();")))
+    (execute "CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();")
+    (execute "INSERT INTO users (name, password) VALUES ('admin', 'admin');")))

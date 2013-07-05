@@ -1,5 +1,6 @@
 (load (make-pathname :directory (pathname-directory (user-homedir-pathname)) :name "quicklisp" :type "lisp"))
 (quicklisp-quickstart:install)
+(ql:quickload 'arnesi)
 (ql:quickload 'cl-irc)
 (ql:quickload 'cl-json)
 (ql:quickload 'cl-test-more)

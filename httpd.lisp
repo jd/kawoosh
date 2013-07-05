@@ -2,6 +2,8 @@
   (:use cl
         kawoosh.dao
         clack
+        clack.builder
+        clack.middleware.auth.basic
         flexi-streams
         postmodern
         clack.app.route
@@ -256,10 +258,21 @@
 (defvar *httpd* nil
   "The running httpd handler.")
 
-(defun start ()
+(defun start (&key (port nil) (debug nil))
   "Start the Kawoosh httpd server."
   (setq *httpd*
-        (clackup #'app)))
+        (clackup
+         (builder
+          (<clack-middleware-auth-basic>
+           :realm "Kawoosh API"
+           :authenticator (lambda (user pass)
+                            (with-pg-connection
+                                (string= pass
+                                         (user-password
+                                          (get-dao 'user :name user))))))
+          #'app)
+         :port port
+         :debug debug)))
 
 (defun stop (&optional (handler *httpd*))
   "Stop the Kawoosh httpd server."
