@@ -24,13 +24,15 @@
   :description "Kawoosh tests")
 
 (def-fixture request (url &key
+                          (user "admin")
+                          (password "admin")
                           (expected-content-type "application/json")
                           (expected-status-code 200)
                           (method :GET)
                           (content nil))
   (multiple-value-bind (body status-code headers uri stream must-close reason-phrase)
       (http-request url
-                    :basic-authorization '("admin" "admin")
+                    :basic-authorization (list user password)
                     :want-stream t
                     :method method
                     :content content)
