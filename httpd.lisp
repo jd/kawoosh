@@ -54,6 +54,7 @@
               `((status . "OK")
                 (message . ,message))))
 
+;; TODO simplify, status is already in HTTP response I think
 (defun error-not-found (message)
   (http-reply 404
               `((status . "Not Found")
@@ -64,34 +65,51 @@
               `((status . "Bad Request")
                 (message . ,message))))
 
+(defun error-forbidden (&optional message)
+  (http-reply 403
+              `((status . "Forbidden")
+                (message . ,message))))
+
 (defvar *routes* nil
   "List of routes built into Kawoosh httpd.")
 
-(defmacro defrouted (method url name keys &body body)
+(defmacro defrouted (name keys method url acl &body body)
   `(progn
      (defun ,name (env)
        (with-parameters env ,keys
-         (with-pg-connection
-           ,@body)))
+         (if (user-has-access-p (getf env :remote-user)
+                                ',(car acl)
+                                ,(cadr acl))
+             (with-pg-connection
+               ,@body)
+             (error-forbidden))))
      (push (cons (make-url-rule ,url :method ',method) #',name)
            *routes*)))
 
 ;; TODO Limit to admin
 ;; TODO paginate?
-(defrouted GET "/user" user-list ()
+(defrouted user-list ()
+    GET "/user"
+    (admin)
   (success-ok (select-dao 'user)))
 
-(defrouted GET "/user/:name" user-get (name)
-  (let ((user (car (select-dao 'user (:= 'name name)))))
+(defrouted user-get (username)
+    GET "/user/:username"
+    (user username)
+  (let ((user (car (select-dao 'user (:= 'name username)))))
     (if user
         (success-ok user)
         (error-not-found "No such user"))))
 
-(defrouted PUT "/user/:username" user-put (username)
+(defrouted user-put (username)
+    PUT "/user/:username"
+    (user username)
   (let ((user (make-dao 'user :name username)))
     (success-ok user)))
 
-(defrouted DELETE "/user/:username" user-delete (username)
+(defrouted user-delete (username)
+    DELETE "/user/:username"
+    (admin)
   (let ((user (get-dao 'user username)))
     (if user
         (progn
@@ -118,7 +136,9 @@
       (write-sequence (string-to-octets "\r\n") stream))))
 
 ;; TODO ?from=<timestamp>
-(defrouted GET "/user/:username/events" user-get-events (username)
+(defrouted user-get-events (username)
+    GET "/user/:username/events"
+    (user username)
   (if (get-dao 'user username)
       `(200
         (:content-type "application/json"
@@ -127,16 +147,22 @@
       (error-not-found "No such user.")))
 
 ;; TODO paginate?
-(defrouted GET "/server" server-list ()
+(defrouted server-list ()
+    GET "/server"
+    (any)
   (success-ok (select-dao 'server)))
 
-(defrouted GET "/server/:name" server-get (name)
+(defrouted server-get (name)
+    GET "/server/:name"
+    (any)
   (let ((server (car (select-dao 'server (:= 'name name)))))
     (if server
         (success-ok server)
         (error-not-found "No such server"))))
 
-(defrouted PUT "/server/:name" server-put (name)
+(defrouted server-put (name)
+    PUT "/server/:name"
+    (admin)
   (let* ((body (decode-json (getf env :raw-body)))
          (args (list :name name
                      :ssl (cdr (assoc :ssl body))
@@ -151,17 +177,23 @@
       (:no-error (inserted) (success-ok server)))))
 
 ;; TODO paginate?
-(defrouted GET "/user/:username/connection" connection-list (username)
+(defrouted connection-list (username)
+    GET "/user/:username/connection"
+    (user username)
   (success-ok (select-dao 'connection (:= 'username username))))
 
-(defrouted GET "/user/:username/connection/:server" connection-get (username server)
+(defrouted connection-get (username server)
+    GET "/user/:username/connection/:server"
+    (user username)
   (let ((connection (car (select-dao 'connection (:and (:= 'username username)
                                                        (:= 'server server))))))
     (if connection
         (success-ok connection)
         (error-not-found "No such connection"))))
 
-(defrouted PUT "/user/:username/connection/:server" connection-put (username server)
+(defrouted connection-put (username server)
+    PUT "/user/:username/connection/:server"
+    (user username)
   (let* ((body (decode-json (getf env :raw-body)))
          (nickname (cdr (assoc :nickname body)))
          (connection (make-instance 'connection :username username
@@ -173,7 +205,9 @@
       (:no-error (inserted) (success-ok connection)))))
 
 ;; TODO paginate?
-(defrouted GET "/user/:username/connection/:server/channel" channel-list (username server)
+(defrouted channel-list (username server)
+     GET "/user/:username/connection/:server/channel"
+    (user username)
   (success-ok (select-dao 'channel (:= 'connection
                                        (:select 'id :from 'connection
                                         :where (:and (:= 'username username)
@@ -181,7 +215,9 @@
 
 ;; XXX check content-type?
 ;; TODO can also change mode + topic
-(defrouted PUT "/user/:username/connection/:server/channel/:channel" channel-join (username server channel)
+(defrouted channel-join (username server channel)
+     PUT "/user/:username/connection/:server/channel/:channel"
+    (user username)
   ;; XXX retrieve only id from connection
   (let ((connection (car (select-dao 'connection
                              (:and (:= 'username username)
@@ -194,7 +230,9 @@
         (error-not-found "No such connection"))))
 
 ;; XXX check content-type?
-(defrouted DELETE "/user/:username/connection/:server/channel/:channel" channel-part (username server channel)
+(defrouted channel-part (username server channel)
+    DELETE "/user/:username/connection/:server/channel/:channel"
+    (user username)
   ;; XXX retrieve only id from connection
   (let ((channel-dao (car (select-dao 'channel (:and (:= 'connection
                                                          (:select 'id :from 'connection
@@ -209,7 +247,9 @@
         (error-not-found "No such connection or channel not joined"))))
 
 ;; TODO paginate?
-(defrouted GET "/user/:username/connection/:server/channel/:channel" channel-get (username server channel)
+(defrouted channel-get (username server channel)
+    GET "/user/:username/connection/:server/channel/:channel"
+    (user username)
   (let ((channel (car (select-dao 'channel (:and (:= 'connection
                                                      (:select 'id :from 'connection
                                                       :where (:and (:= 'username username)
@@ -221,7 +261,9 @@
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
-(defrouted GET "/user/:username/connection/:server/channel/:channel/events" channel-get-events (username server channel)
+(defrouted channel-get-events (username server channel)
+    GET "/user/:username/connection/:server/channel/:channel/events"
+    (user username)
   (let ((logs (query-dao 'log-entry
                          (:limit
                           (:select 'time 'source 'command 'target 'payload
