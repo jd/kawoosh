@@ -258,7 +258,7 @@
 (defvar *httpd* nil
   "The running httpd handler.")
 
-(defun start (&key (port nil) (debug nil))
+(defun start (&key (port 5000) (debug nil))
   "Start the Kawoosh httpd server."
   (setq *httpd*
         (clackup
