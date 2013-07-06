@@ -6,17 +6,18 @@
         clack.middleware.auth.basic
         flexi-streams
         postmodern
-        clack.app.route
         clack.request
         json)
+  (:import-from clack.util.route
+                make-url-rule
+                match)
   (:shadow :stop)
   (:shadowing-import-from
    :kawoosh.dao :server-port)
   (:shadowing-import-from
    :kawoosh.dao :server-name)
   (:export start
-           stop
-           app))
+           stop))
 
 (in-package :kawoosh.httpd)
 
@@ -72,7 +73,8 @@
        (with-parameters env ,keys
          (with-pg-connection
            ,@body)))
-     (push (list ',method ,url #',name) *routes*)))
+     (push (cons (make-url-rule ,url :method ',method) #',name)
+           *routes*)))
 
 ;; TODO Limit to admin
 ;; TODO paginate?
@@ -235,7 +237,6 @@
         (success-ok logs)
         (error-not-found "No such connection or channel"))))
 
-
 ;; TODO likely missing:
 ;; (GET "/user/:username/connection/:server/events" #'connection-get-events) ; query log
 ;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
@@ -252,8 +253,15 @@
 ;; (PUT "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-put-user) ; change mode
 ;; (DELETE "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-delete-user) ; kick
 
-
-(eval (macroexpand `(defroutes app ,@*routes*)))
+(defun application (env)
+  "Define the Clack application for Kawoosh."
+  (let ((request-method (getf env :request-method))
+        (request-path (getf env :path-info)))
+    (loop for (url-rule . handler) in *routes*
+          do (multiple-value-bind (matched params)
+                 (match url-rule request-method request-path)
+               (when matched
+                 (return (call handler (append env (list :route.parameters params)))))))))
 
 (defvar *httpd* nil
   "The running httpd handler.")
@@ -270,7 +278,7 @@
                                 (let ((dao-user (get-dao 'user :name user)))
                                   (when (string= pass (user-password dao-user))
                                     (values t dao-user))))))
-          #'app)
+          #'application)
          :port port
          :debug debug)))
 
