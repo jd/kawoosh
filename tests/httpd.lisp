@@ -14,6 +14,14 @@
 
 (in-suite kawoosh.test.httpd)
 
+(def-test httpd-authorization ()
+  (with-fixture database ()
+    (with-fixture request ("http://localhost:4242/"
+                           :user "foobar"
+                           :password ""
+                           :expected-content-type "text/plain; charset=utf-8"
+                           :expected-status-code 401))))
+
 (def-test httpd-user ()
   (with-fixture database ()
     (with-fixture request ("http://localhost:4242/user/jd"
