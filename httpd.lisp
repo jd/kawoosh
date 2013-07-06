@@ -267,9 +267,9 @@
            :realm "Kawoosh API"
            :authenticator (lambda (user pass)
                             (with-pg-connection
-                                (string= pass
-                                         (user-password
-                                          (get-dao 'user :name user))))))
+                                (let ((dao-user (get-dao 'user :name user)))
+                                  (when (string= pass (user-password dao-user))
+                                    (values t dao-user))))))
           #'app)
          :port port
          :debug debug)))
