@@ -25,12 +25,30 @@
 (def-test httpd-user ()
   (with-fixture database ()
     (with-fixture request ("http://localhost:4242/user/jd"
-                           :method :PUT)
+                           :method :PUT
+                           :content (encode-json-to-string '((:password . "f00b4r"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("http://localhost:4242/user")
       (is (equal '(((:name . "admin"))
                    ((:name . "jd")))
                  (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/user/jd")
+      (is (equal '((:name . "jd"))
+                 (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/user/jd"
+                           :user "jd"
+                           :password "f00b4r")
+      (is (equal '((:name . "jd"))
+                 (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/user/jd"
+                           :user "jd"
+                           :password "f00b4r"
+                           :method :DELETE
+                           :expected-status-code 403))
+    (with-fixture request ("http://localhost:4242/user"
+                           :user "jd"
+                           :password "f00b4r"
+                           :expected-status-code 403))
     (with-fixture request ("http://localhost:4242/user/jd"
                            :method :DELETE
                            :expected-status-code 204)

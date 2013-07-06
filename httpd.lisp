@@ -104,7 +104,10 @@
 (defrouted user-put (username)
     PUT "/user/:username"
     (user username)
-  (let ((user (make-dao 'user :name username)))
+  (let* ((body (decode-json (getf env :raw-body)))
+         (user (make-dao 'user
+                         :name username
+                         :password (cdr (assoc :password body)))))
     (success-ok user)))
 
 (defrouted user-delete (username)
@@ -315,11 +318,14 @@
          (builder
           (<clack-middleware-auth-basic>
            :realm "Kawoosh API"
-           :authenticator (lambda (user pass)
-                            (with-pg-connection
-                                (let ((dao-user (get-dao 'user :name user)))
-                                  (when (string= pass (user-password dao-user))
-                                    (values t dao-user))))))
+           :authenticator (lambda (user password)
+                                (let ((dao-user
+                                        (with-pg-connection
+                                            (get-dao 'user user))))
+                                  (when (and dao-user
+                                             (string= (user-password dao-user)
+                                                      password))
+                                    (values t dao-user)))))
           #'application)
          :port port
          :debug debug)))
