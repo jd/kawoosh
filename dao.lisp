@@ -47,7 +47,7 @@
 (defclass dao-object () nil)
 
 (defvar *dao-json-filter*
-  '((kawoosh.dao:user password)
+  '((kawoosh.dao:user password admin)
     (kawoosh.dao:connection id)
     (kawoosh.dao:channel connection)
     (kawoosh.dao:log-entry id connection))
@@ -66,7 +66,8 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
 (defclass user (dao-object)
   ((name :col-type string :initarg :name :accessor user-name)
-   (password :col-type string :initarg :password :accessor user-password))
+   (password :col-type string :initarg :password :accessor user-password)
+   (admin :col-type boolean :initarg :admin-p :accessor user-admin-p))
   (:metaclass postmodern:dao-class)
   (:table-name users)
   (:keys name))
@@ -146,7 +147,8 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (with-pg-connection
     (execute "CREATE TABLE users (
        name text NOT NULL PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
-       password text
+       password text,
+       admin boolean NOT NULL DEFAULT FALSE
 );")
     (execute "CREATE TABLE servers (
        name text PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
@@ -213,4 +215,4 @@ END;
 $lower_address$
 LANGUAGE plpgsql;")
     (execute "CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();")
-    (execute "INSERT INTO users (name, password) VALUES ('admin', 'admin');")))
+    (execute "INSERT INTO users (name, password, admin) VALUES ('admin', 'admin', true);")))
