@@ -86,7 +86,6 @@
      (push (cons (make-url-rule ,url :method ',method) #',name)
            *routes*)))
 
-;; TODO Limit to admin
 ;; TODO paginate?
 (defrouted user-list ()
     GET "/user"
