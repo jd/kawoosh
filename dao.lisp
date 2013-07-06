@@ -40,7 +40,8 @@
            channel-topic
            channel-topic-who
            channel-topic-time
-           channel-creation-time))
+           channel-creation-time
+           user-has-access-p))
 
 (in-package :kawoosh.dao)
 
@@ -71,6 +72,15 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (:metaclass postmodern:dao-class)
   (:table-name users)
   (:keys name))
+
+(defgeneric user-has-access-p (user access &optional accessed-user)
+  (:documentation "Check that USER has ACCESS level."))
+
+(defmethod user-has-access-p ((user user) access &optional accessed-user)
+  (or (string= access 'any)
+      (user-admin-p user)
+      (and (string= access 'user)
+           (string= (user-name user) accessed-user))))
 
 (defclass server (dao-object)
   ((name :col-type string :initarg :name :accessor server-name)

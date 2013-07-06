@@ -18,4 +18,7 @@
     :depends-on ("test" "worker"))
    (:file "worker"
     :pathname "tests/worker"
+    :depends-on ("test"))
+   (:file "dao"
+    :pathname "tests/dao"
     :depends-on ("test"))))
