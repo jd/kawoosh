@@ -22,6 +22,48 @@
                            :expected-content-type "text/plain; charset=utf-8"
                            :expected-status-code 401))))
 
+(def-test httpd-server ()
+  (with-fixture database ()
+    (with-fixture request ("http://localhost:4242/user/user"
+                           :method :PUT
+                           :content (encode-json-to-string '((:password . "f00b4r"))))
+      (is (equal '((:name . "user")) (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/server/Naquadah"
+                           :method :PUT
+                           :content (encode-json-to-string '((:address . "irc.naquadah.org")
+                                                             (:ssl . t))))
+      (is (equal '((:name . "Naquadah")
+                   (:address . "irc.naquadah.org")
+                   (:port . 6667)
+                   (:ssl . t))
+                 (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/server/Naquadah"
+                           :user "user"
+                           :password "f00b4r"
+                           :method :PUT
+                           :content (encode-json-to-string '((:address . "irc.naquadah.org")
+                                                             (:ssl . t)))
+                           :expected-status-code 403))
+    (with-fixture request ("http://localhost:4242/server"
+                           :user "user"
+                           :password "f00b4r")
+      (is (equal '(((:name . "Naquadah")
+                    (:address . "irc.naquadah.org")
+                    (:port . 6667)
+                    (:ssl . t)))
+                 (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/server/Naquadah"
+                           :user "user"
+                           :password "f00b4r")
+      (is (equal '((:name . "Naquadah")
+                   (:address . "irc.naquadah.org")
+                   (:port . 6667)
+                   (:ssl . t))
+                 (decode-json stream))))
+    (with-fixture request ("http://localhost:4242/server/foobar" :expected-status-code 404)
+      (is (equal '((:status . "Not Found") (:message . "No such server"))
+                 (decode-json stream))))))
+
 (def-test httpd-user ()
   (with-fixture database ()
     (with-fixture request ("http://localhost:4242/user/jd"
@@ -92,33 +134,6 @@
           (is (equal "NOTICE" (cdr (assoc :command event))))
           (is (equal "irc.naquadah.org" (cdr (assoc :source event))))))
       (with-fixture request ("http://localhost:4242/user/nosuchuser/events" :expected-status-code 404)))))
-
-(def-test httpd-server ()
-  (with-fixture database ()
-    (with-fixture request ("http://localhost:4242/server/Naquadah"
-                           :method :PUT
-                           :content (encode-json-to-string '((:address . "irc.naquadah.org")
-                                                             (:ssl . t))))
-      (is (equal '((:name . "Naquadah")
-                   (:address . "irc.naquadah.org")
-                   (:port . 6667)
-                   (:ssl . t))
-                 (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server")
-      (is (equal '(((:name . "Naquadah")
-                    (:address . "irc.naquadah.org")
-                    (:port . 6667)
-                    (:ssl . t)))
-                 (decode-json stream) )))
-    (with-fixture request ("http://localhost:4242/server/Naquadah")
-      (is (equal '((:name . "Naquadah")
-                   (:address . "irc.naquadah.org")
-                   (:port . 6667)
-                   (:ssl . t))
-                 (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server/foobar" :expected-status-code 404)
-      (is (equal '((:status . "Not Found") (:message . "No such server"))
-                 (decode-json stream) )) )))
 
 (def-test httpd-user-connection ()
   (with-fixture database ()
