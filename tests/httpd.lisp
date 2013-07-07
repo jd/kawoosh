@@ -16,7 +16,7 @@
 
 (def-test httpd-authorization ()
   (with-fixture database ()
-    (with-fixture request ("http://localhost:4242/"
+    (with-fixture request ("/"
                            :user "foobar"
                            :password ""
                            :expected-content-type "text/plain; charset=utf-8"
@@ -24,11 +24,11 @@
 
 (def-test httpd-server ()
   (with-fixture database ()
-    (with-fixture request ("http://localhost:4242/user/user"
+    (with-fixture request ("/user/user"
                            :method :PUT
                            :content (encode-json-to-string '((:password . "f00b4r"))))
       (is (equal '((:name . "user")) (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server/Naquadah"
+    (with-fixture request ("/server/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:address . "irc.naquadah.org")
                                                              (:ssl . t))))
@@ -37,14 +37,14 @@
                    (:port . 6667)
                    (:ssl . t))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server/Naquadah"
+    (with-fixture request ("/server/Naquadah"
                            :user "user"
                            :password "f00b4r"
                            :method :PUT
                            :content (encode-json-to-string '((:address . "irc.naquadah.org")
                                                              (:ssl . t)))
                            :expected-status-code 403))
-    (with-fixture request ("http://localhost:4242/server"
+    (with-fixture request ("/server"
                            :user "user"
                            :password "f00b4r")
       (is (equal '(((:name . "Naquadah")
@@ -52,7 +52,7 @@
                     (:port . 6667)
                     (:ssl . t)))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server/Naquadah"
+    (with-fixture request ("/server/Naquadah"
                            :user "user"
                            :password "f00b4r")
       (is (equal '((:name . "Naquadah")
@@ -60,54 +60,54 @@
                    (:port . 6667)
                    (:ssl . t))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server/foobar" :expected-status-code 404)
+    (with-fixture request ("/server/foobar" :expected-status-code 404)
       (is (equal '((:status . "Not Found") (:message . "No such server"))
                  (decode-json stream))))))
 
 (def-test httpd-user ()
   (with-fixture database ()
-    (with-fixture request ("http://localhost:4242/user/jd"
+    (with-fixture request ("/user/jd"
                            :method :PUT
                            :content (encode-json-to-string '((:password . "f00b4r"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user")
+    (with-fixture request ("/user")
       (is (equal '(((:name . "admin"))
                    ((:name . "jd")))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user/jd")
+    (with-fixture request ("/user/jd")
       (is (equal '((:name . "jd"))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user/jd"
+    (with-fixture request ("/user/jd"
                            :user "jd"
                            :password "f00b4r")
       (is (equal '((:name . "jd"))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user/jd"
+    (with-fixture request ("/user/jd"
                            :user "jd"
                            :password "f00b4r"
                            :method :DELETE
                            :expected-status-code 403))
-    (with-fixture request ("http://localhost:4242/user"
+    (with-fixture request ("/user"
                            :user "jd"
                            :password "f00b4r"
                            :expected-status-code 403))
-    (with-fixture request ("http://localhost:4242/user/jd"
+    (with-fixture request ("/user/jd"
                            :method :DELETE
                            :expected-status-code 204)
       (is (equal nil (read-line stream nil))))
-    (with-fixture request ("http://localhost:4242/user")
+    (with-fixture request ("/user")
       (is (equal '(((:name . "admin")))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user/foobar" :expected-status-code 404)
+    (with-fixture request ("/user/foobar" :expected-status-code 404)
       (is (equal '((:status . "Not Found") (:message . "No such user")) (decode-json stream))))))
 
 (def-test httpd-user-events-retrieval ()
   (with-fixture database ()
-    (with-fixture request ("http://localhost:4242/user/jd"
+    (with-fixture request ("/user/jd"
                            :method :PUT
                            :content (encode-json-to-string '((:name . "jd"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server/Naquadah"
+    (with-fixture request ("/server/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:address . "irc.naquadah.org")
                                                              (:ssl . t))))
@@ -116,7 +116,7 @@
                    (:port . 6667)
                    (:ssl . t))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
+    (with-fixture request ("/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))
       (let ((s (decode-json stream)))
@@ -129,19 +129,19 @@
         (is (equal "jd" (cdr (assoc :nickname s))))
         (is (equal "jd" (cdr (assoc :username s))))))
     (with-fixture worker ("jd" "Naquadah")
-      (with-fixture request ("http://localhost:4242/user/jd/events")
+      (with-fixture request ("/user/jd/events")
         (let ((event (decode-json-from-string (read-line stream nil))))
           (is (equal "NOTICE" (cdr (assoc :command event))))
           (is (equal "irc.naquadah.org" (cdr (assoc :source event))))))
-      (with-fixture request ("http://localhost:4242/user/nosuchuser/events" :expected-status-code 404)))))
+      (with-fixture request ("/user/nosuchuser/events" :expected-status-code 404)))))
 
 (def-test httpd-user-connection ()
   (with-fixture database ()
-    (with-fixture request ("http://localhost:4242/user/jd"
+    (with-fixture request ("/user/jd"
                            :method :PUT
                            :content (encode-json-to-string '((:name . "jd"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/server/Naquadah"
+    (with-fixture request ("/server/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:address . "irc.naquadah.org")
                                                              (:ssl . t))))
@@ -150,7 +150,7 @@
                    (:port . 6667)
                    (:ssl . t))
                  (decode-json stream))))
-    (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah"
+    (with-fixture request ("/user/jd/connection/Naquadah"
                            :method :PUT
                            :content (encode-json-to-string '((:nickname . "jd"))))
       (let ((s (decode-json stream)))
@@ -162,7 +162,7 @@
         (is (equal "jd" (cdr (assoc :realname s))))
         (is (equal "jd" (cdr (assoc :nickname s))))
         (is (equal "jd" (cdr (assoc :username s))))))
-    (with-fixture request ("http://localhost:4242/user/jd/connection")
+    (with-fixture request ("/user/jd/connection")
       (let* ((data (decode-json stream))
              (s (first data)))
         (is (equal 1 (length data)))
@@ -174,7 +174,7 @@
         (is (equal "jd" (cdr (assoc :realname s))))
         (is (equal "jd" (cdr (assoc :nickname s))))
         (is (equal "jd" (cdr (assoc :username s))))))
-    (with-fixture request ("http://localhost:4242/user/jd/connection/Naquadah")
+    (with-fixture request ("/user/jd/connection/Naquadah")
       (let ((s (decode-json stream)))
         (is (equal nil
                    (set-exclusive-or (mapcar 'car s)

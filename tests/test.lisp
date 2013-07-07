@@ -31,7 +31,7 @@
                           (method :GET)
                           (content nil))
   (multiple-value-bind (body status-code headers uri stream must-close reason-phrase)
-      (http-request url
+      (http-request (concatenate 'string "http://localhost:4242" url)
                     :basic-authorization (list user password)
                     :want-stream t
                     :method method
