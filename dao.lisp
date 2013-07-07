@@ -150,7 +150,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
 (defun drop-tables ()
   (with-pg-connection
-    (dolist (table-name '(reply error logs channels connection servers users))
+    (dolist (table-name '(command reply error logs channels connection servers users))
       (execute (:drop-table :if-exists table-name)))))
 
 (defun create-tables ()
@@ -205,6 +205,10 @@ O to STREAM (or to *JSON-OUTPUT*)."
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
 ) INHERITS (logs);")
     (execute "CREATE TABLE error (
+	id integer PRIMARY KEY DEFAULT nextval('logs_id_seq'),
+	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
+) INHERITS (logs);")
+    (execute "CREATE TABLE command (
 	id integer PRIMARY KEY DEFAULT nextval('logs_id_seq'),
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
 ) INHERITS (logs);")
