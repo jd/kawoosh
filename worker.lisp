@@ -250,6 +250,20 @@ If last is not nil, put the hook in the last run ones."
   (connection-add-hook connection 'irc:irc-rpl_endofmotd-message #'connection-handle-rpl_endofmotd)
   (connection-add-hook connection 'irc:irc-nick-message #'connection-handle-nick)
 
+  (defmethod irc::send-irc-message ((irc-connection (eql (connection-network-connection connection)))
+                                    command &rest arguments)
+    (call-next-method)
+    (execute
+     "INSERT INTO command (connection, source, command, target, payload) VALUES ($1, $2, $3, $4, $5)"
+     (connection-id connection)
+     (let ((user (irc:user irc-connection)))
+       (if user
+           (irc:nickname user)
+           ""))
+     (symbol-name command)
+     (car arguments)
+     (format nil "~{~a~^-~}" (cdr arguments))))
+
   (defmethod irc:irc-message-event ((irc-connection (eql (connection-network-connection connection)))
                                     (message irc:irc-message))
     (execute
