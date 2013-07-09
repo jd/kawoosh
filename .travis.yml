@@ -1,6 +1,6 @@
 language: common-lisp
 install:
-  - sudo apt-get install sbcl pgtap
+  - sudo apt-get install sbcl pgtap ircd-irc2
   - wget -q http://beta.quicklisp.org/quicklisp.lisp -O ~/quicklisp.lisp
   - mkdir -p ~/quicklisp/local-projects/
   - svn checkout svn://common-lisp.net/project/cl-irc/svn/trunk ~/quicklisp/local-projects/cl-irc
