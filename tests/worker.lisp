@@ -89,7 +89,7 @@
         (is (equal '((:status . "Not Found")
                      (:message . "No such connection or channel not joined"))
                    (decode-json stream))))
-      (with-fixture request ("/user/jd/connection/localhost/channel/%23test/events")
+      (with-fixture request ("/user/jd/connection/localhost/channel/%23test/event")
         (let* ((s (decode-json stream))
                (event (nth 0 s)))
           (is (equal "JOIN" (cdr (assoc :command event))))

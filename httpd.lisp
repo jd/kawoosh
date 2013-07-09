@@ -119,11 +119,11 @@
           (success-ok nil))
         (error-not-found "No such user"))))
 
-(defun user-send-events (username stream)
+(defun user-send-events (class username stream)
   "Send new events for USERNAME to STREAM."
   (let* ((last-id 0)
          (logs (with-pg-connection
-                   (query-dao 'log-entry
+                   (query-dao class
                               (:select 'time 'source 'command 'target 'payload
                                :from (dao-table-name (find-class 'log-entry))
                                :where (:and
@@ -138,15 +138,28 @@
       (write-sequence (string-to-octets "\r\n") stream))))
 
 ;; TODO ?from=<timestamp>
-(defrouted user-get-events (username)
-    GET "/user/:username/events"
+(defrouted user-list-event (username)
+    GET "/user/:username/event"
     (user username)
   (if (get-dao 'user username)
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events username stream)))
+        ,(lambda (stream) (user-send-events 'log-entry username stream)))
       (error-not-found "No such user.")))
+
+
+;; TODO ?from=<timestamp>
+(defrouted user-list-reply (username)
+    GET "/user/:username/reply"
+    (user username)
+  (if (get-dao 'user username)
+      `(200
+        (:content-type "application/json"
+         :transfer-encoding "chunked")
+        ,(lambda (stream) (user-send-events 'log-reply username stream)))
+      (error-not-found "No such user.")))
+
 
 ;; TODO paginate?
 (defrouted server-list ()
@@ -263,8 +276,8 @@
 
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
-(defrouted channel-get-events (username server channel)
-    GET "/user/:username/connection/:server/channel/:channel/events"
+(defrouted channel-list-event (username server channel)
+    GET "/user/:username/connection/:server/channel/:channel/event"
     (user username)
   (let ((logs (query-dao 'log-entry
                          (:limit
@@ -282,13 +295,13 @@
         (error-not-found "No such connection or channel"))))
 
 ;; TODO likely missing:
-;; (GET "/user/:username/connection/:server/events" #'connection-get-events) ; query log
+;; (GET "/user/:username/connection/:server/event" #'connection-list-event) ; query log
 ;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
 
 ;; (GET "/user/:username/connection/:server/user" #'ircuser-list)
 ;; (GET "/user/:username/connection/:server/user/:ircuser" #'ircuser-get) ; whois
-;; (GET "/user/:username/connection/:server/user/:ircuser/events" #'ircuser-get-events) ; query log
-;; (POST "/user/:username/connection/:server/user/:ircuser/message" #'ircuser-get-events) ; privmsg
+;; (GET "/user/:username/connection/:server/user/:ircuser/event" #'ircuser-get-events) ; query log
+;; (POST "/user/:username/connection/:server/user/:ircuser/event" #'ircuser-put-event) ; privmsg
 
 ;; (POST "/user/:username/connection/:server/channel/:channel/message" #'channel-send-message) ; privmsg
 

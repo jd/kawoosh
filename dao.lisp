@@ -41,7 +41,10 @@
            channel-topic-who
            channel-topic-time
            channel-creation-time
-           user-has-access-p))
+           user-has-access-p
+           log-reply
+           log-command
+           log-error))
 
 (in-package :kawoosh.dao)
 
@@ -51,7 +54,9 @@
   '((kawoosh.dao:user password admin)
     (kawoosh.dao:connection id)
     (kawoosh.dao:channel connection)
-    (kawoosh.dao:log-entry id connection))
+    ;; FIXME We need to provide connection by resolving it to the connection
+    ;; name for the user.
+    (kawoosh.dao:log-entry connection))
   "Fields to not export when dumping a DAO object to JSON.")
 
 (defmethod encode-json ((o dao-object)
@@ -129,6 +134,21 @@ O to STREAM (or to *JSON-OUTPUT*)."
    (payload :col-type text :initarg :payload :access log-payload))
   (:metaclass dao-class)
   (:table-name logs)
+  (:keys id))
+
+(defclass log-reply (log-entry)
+  ()
+  (:metaclass dao-class)
+  (:keys id))
+
+(defclass log-command (log-entry)
+  ()
+  (:metaclass dao-class)
+  (:keys id))
+
+(defclass log-error (log-entry)
+  ()
+  (:metaclass dao-class)
   (:keys id))
 
 (defparameter *dbname* "kawoosh"
