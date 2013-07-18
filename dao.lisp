@@ -139,16 +139,19 @@ O to STREAM (or to *JSON-OUTPUT*)."
 (defclass log-reply (log-entry)
   ()
   (:metaclass dao-class)
+  (:table-name reply)
   (:keys id))
 
 (defclass log-command (log-entry)
   ()
   (:metaclass dao-class)
+  (:table-name command)
   (:keys id))
 
 (defclass log-error (log-entry)
   ()
   (:metaclass dao-class)
+  (:table-name error)
   (:keys id))
 
 (defparameter *dbname* "kawoosh"

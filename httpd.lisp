@@ -125,7 +125,7 @@
          (logs (with-pg-connection
                    (query-dao class
                               (:select 'time 'source 'command 'target 'payload
-                               :from (dao-table-name (find-class 'log-entry))
+                               :from (dao-table-name (find-class class))
                                :where (:and
                                        (:> 'id last-id)
                                        (:in 'connection
