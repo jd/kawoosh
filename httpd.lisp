@@ -124,7 +124,7 @@
   (let* ((last-id 0)
          (logs (with-pg-connection
                    (query-dao class
-                              (:select 'time 'source 'command 'target 'payload
+                              (:select '*
                                :from (dao-table-name (find-class class))
                                :where (:and
                                        (:> 'id last-id)

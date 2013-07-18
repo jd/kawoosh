@@ -49,15 +49,29 @@
 
 (in-package :kawoosh.dao)
 
+(defparameter *dbname* "kawoosh"
+  "Database name.")
+
+(defparameter *dbuser* "kawoosh"
+  "Databaser user name.")
+
+(defparameter *dbpassword* "kawoosh"
+  "Databaser password.")
+
+(defparameter *dbhost* "localhost"
+  "Databaser host.")
+
+(defmacro with-pg-connection (&rest body)
+  `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
+     (postmodern:execute "SET TIMEZONE='UTC'")
+     ,@body))
+
 (defclass dao-object () nil)
 
 (defvar *dao-json-filter*
   '((kawoosh.dao:user password admin)
     (kawoosh.dao:connection id)
-    (kawoosh.dao:channel connection)
-    ;; FIXME We need to provide connection by resolving it to the connection
-    ;; name for the user.
-    (kawoosh.dao:log-entry connection))
+    (kawoosh.dao:channel connection))
   "Fields to not export when dumping a DAO object to JSON.")
 
 (defmethod encode-json ((o dao-object)
@@ -137,6 +151,22 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (:table-name logs)
   (:keys id))
 
+(defmethod encode-json ((o log-entry)
+                        &optional (stream *json-output*))
+  "Write the JSON representation (Object) of the connection object O to
+STREAM (or to *JSON-OUTPUT*)."
+  (with-object (stream)
+    (json::map-slots (lambda (key value)
+                       (as-object-member (key stream)
+                         (encode-json
+                          (if (string= key 'connection)
+                              (connection-server
+                               (with-pg-connection
+                                   (get-dao 'connection value)))
+                              (if (eq value :null) nil value))
+                          stream)))
+                     o)))
+
 (defclass log-reply (log-entry)
   ()
   (:metaclass dao-class)
@@ -154,23 +184,6 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (:metaclass dao-class)
   (:table-name error)
   (:keys id))
-
-(defparameter *dbname* "kawoosh"
-  "Database name.")
-
-(defparameter *dbuser* "kawoosh"
-  "Databaser user name.")
-
-(defparameter *dbpassword* "kawoosh"
-  "Databaser password.")
-
-(defparameter *dbhost* "localhost"
-  "Databaser host.")
-
-(defmacro with-pg-connection (&rest body)
-  `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
-     (postmodern:execute "SET TIMEZONE='UTC'")
-     ,@body))
 
 (defun drop-tables ()
   (with-pg-connection
