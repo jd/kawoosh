@@ -14,6 +14,7 @@
            server
            connection
            channel
+           log-connection
            log-entry
            id
            user-name
