@@ -1,6 +1,7 @@
 (defpackage kawoosh.httpd
   (:use cl
         kawoosh.dao
+        kawoosh.rpc
         clack
         clack.builder
         clack.middleware.auth.basic
@@ -21,15 +22,6 @@
 
 (in-package :kawoosh.httpd)
 
-(defgeneric rpc-send (connection &rest args))
-
-(defmethod rpc-send ((connection connection) &rest args)
-  (apply 'rpc-send (connection-id connection) args))
-
-(defmethod rpc-send ((connection-id integer) &rest args)
-  (execute (format nil "NOTIFY connection_~a, '~a'"
-                   connection-id
-                   (with-output-to-string (s) (prin1 args s)))))
 
 (defmacro with-parameters (env keys &rest body)
   `(destructuring-bind (&key ,@keys)
