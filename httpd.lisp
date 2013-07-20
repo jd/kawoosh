@@ -130,7 +130,6 @@
       ;; \r\n
       (write-sequence #(13 10) stream))))
 
-;; TODO ?from=<timestamp>
 (defrouted user-get-event (username event-id)
     GET "/user/:username/event/:event-id"
     (user username)
