@@ -53,17 +53,16 @@
               (car (select-dao 'connection (:and (:= 'username username)
                                                  (:= 'server server)))))))
     (assert connection nil "No such fixture connection")
-    (let ((th (make-thread (lambda () (kawoosh.worker:start connection))
-                           :name "Kawoosh worker")))
-      ;; FIXME use `defmethod' with a specializer using eql
-      (defun worker-wait-for-join (channel)
-        (loop until (with-pg-connection
-                        (get-dao 'channel (connection-id connection) channel))
-              do (sleep 0.1)))
-      (defun worker-wait-for-part (channel)
-        (loop while (with-pg-connection
-                        (get-dao 'channel (connection-id connection) channel))
-              do (sleep 0.1)))
+    (make-thread (lambda () (kawoosh.worker:start connection))
+                 :name "Kawoosh worker")
+    (macrolet ((worker-wait-for-join (channel)
+                 `(loop until (with-pg-connection
+                                  (get-dao 'channel (connection-id connection) ,channel))
+                        do (sleep 0.1)))
+               (worker-wait-for-part (channel)
+                 `(loop while (with-pg-connection
+                                  (get-dao 'channel (connection-id connection) ,channel))
+                        do (sleep 0.1))))
       ;; Wait for the connection to be established
       (loop until (connection-connected-p connection)
             do (sleep 0.1))
