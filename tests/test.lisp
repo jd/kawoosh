@@ -53,7 +53,8 @@
               (car (select-dao 'connection (:and (:= 'username username)
                                                  (:= 'server server)))))))
     (assert connection nil "No such fixture connection")
-    (let ((th (make-thread (lambda () (kawoosh.worker:start connection)))))
+    (let ((th (make-thread (lambda () (kawoosh.worker:start connection))
+                           :name "Kawoosh worker")))
       (defun worker-wait-for-join (channel)
         (loop until (with-pg-connection
                         (get-dao 'channel (connection-id connection) channel))
