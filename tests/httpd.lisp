@@ -142,6 +142,11 @@
           (is (equal "RPL_HELLO" (cdr (assoc :command event))))
           (is (equal "localhost" (cdr (assoc :connection event))))
           (is (equal "irc.localhost" (cdr (assoc :source event))))))
+      (with-fixture request ("/user/jd/connection/localhost/event")
+        (let ((event (decode-json-from-string (read-line stream nil))))
+          (is (equal "RPL_HELLO" (cdr (assoc :command event))))
+          (is (equal "localhost" (cdr (assoc :connection event))))
+          (is (equal "irc.localhost" (cdr (assoc :source event))))))
       (with-fixture request ("/user/nosuchuser/event" :expected-status-code 404)))))
 
 (def-test httpd-user-connection ()

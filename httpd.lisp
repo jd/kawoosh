@@ -111,18 +111,24 @@
           (success-ok nil))
         (error-not-found "No such user"))))
 
-(defun user-send-events (class username stream)
-  "Send new events for USERNAME to STREAM."
+;; FIXME Add a `limit' parameter
+;; FIXME Add a `from-timestamp' parameter
+;; FIXME Add a `streaming' parameter
+(defun user-send-events (class username server stream)
+  "Send new events of type CLASS for USERNAME and SERVER to STREAM.
+If SERVER is nil, don't filter out on servers."
   (let* ((last-id 0)
          (logs (with-pg-connection
-                   (query-dao class
-                              (:select '*
-                               :from (dao-table-name (find-class class))
-                               :where (:and
-                                       (:> 'id last-id)
-                                       (:in 'connection
-                                            (:select 'id :from 'connection
-                                             :where (:= 'username username)))))))))
+                   (select-dao class
+                       (:raw (sql-compile
+                              `(:and
+                                (:> 'id ,last-id)
+                                (:in 'connection
+                                     (:select 'id :from 'connection
+                                      :where (:and (:= 'username ,username)
+                                                   ,(if server
+                                                        `(:= server ,server)
+                                                        t)))))))))))
     (dolist (log logs)
       ;; `encode-json' wants to use `write-char' which doesn't exist for a
       ;; `chunga:chunked-io-stream'
@@ -146,7 +152,18 @@
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events 'log-entry username stream)))
+        ,(lambda (stream) (user-send-events 'log-entry username nil stream)))
+      (error-not-found "No such user.")))
+
+;; TODO ?from=<timestamp>
+(defrouted user-connection-list-event (username server)
+    GET "/user/:username/connection/:server/event"
+    (user username)
+  (if (get-dao 'user username)
+      `(200
+        (:content-type "application/json"
+         :transfer-encoding "chunked")
+        ,(lambda (stream) (user-send-events 'log-entry username server stream)))
       (error-not-found "No such user.")))
 
 
@@ -158,7 +175,7 @@
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events 'log-reply username stream)))
+        ,(lambda (stream) (user-send-events 'log-reply username nil stream)))
       (error-not-found "No such user.")))
 
 ;; TODO ?from=<timestamp>
@@ -169,7 +186,7 @@
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events 'log-command username stream)))
+        ,(lambda (stream) (user-send-events 'log-command username nil stream)))
       (error-not-found "No such user.")))
 
 ;; TODO paginate?
@@ -302,6 +319,7 @@
 (defrouted channel-list-event (username server channel)
     GET "/user/:username/connection/:server/channel/:channel/event"
     (user username)
+  ;; FIXME use `user-send-events'!
   (let ((logs (query-dao 'log-entry
                          (:limit
                           (:select 'time 'source 'command 'target 'payload
