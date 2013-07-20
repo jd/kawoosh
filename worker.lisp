@@ -253,32 +253,34 @@ If last is not nil, put the hook in the last run ones."
   (defmethod irc::send-irc-message ((irc-connection (eql (connection-network-connection connection)))
                                     command &rest arguments)
     (call-next-method)
-    (execute
-     "INSERT INTO command (connection, source, command, target, payload) VALUES ($1, $2, $3, $4, $5)"
-     (connection-id connection)
-     (let ((user (irc:user irc-connection)))
-       (if user
-           (irc:nickname user)
+    (with-pg-connection
+        (execute
+         "INSERT INTO command (connection, source, command, target, payload) VALUES ($1, $2, $3, $4, $5)"
+         (connection-id connection)
+         (let ((user (irc:user irc-connection)))
+           (if user
+               (irc:nickname user)
            ""))
-     (symbol-name command)
-     (car arguments)
-     (format nil "~{~a~^-~}" (cdr arguments))))
+         (symbol-name command)
+         (car arguments)
+         (format nil "~{~a~^-~}" (cdr arguments)))))
 
   (defmethod irc:irc-message-event ((irc-connection (eql (connection-network-connection connection)))
                                     (message irc:irc-message))
-    (execute
-     (format
-      nil
-      "INSERT INTO ~a (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
-      (if (string= (irc:command message) "ERR" :end1 3)
-          "error"
-          "reply"))
-     (connection-id connection)
-     (irc-message-received-timestamp message)
-     (irc:source message)
-     (irc:command message)
-     (car (irc:arguments message))
-     (or (cadr (irc:arguments message)) :null))
+    (with-pg-connection
+        (execute
+         (format
+          nil
+          "INSERT INTO ~a (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
+          (if (string= (irc:command message) "ERR" :end1 3)
+              "error"
+              "reply"))
+         (connection-id connection)
+         (irc-message-received-timestamp message)
+         (irc:source message)
+         (irc:command message)
+         (car (irc:arguments message))
+         (or (cadr (irc:arguments message)) :null)))
     (call-next-method))
 
   ;; Endless loop starts here
