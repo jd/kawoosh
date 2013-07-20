@@ -55,6 +55,7 @@
     (assert connection nil "No such fixture connection")
     (let ((th (make-thread (lambda () (kawoosh.worker:start connection))
                            :name "Kawoosh worker")))
+      ;; FIXME use `defmethod' with a specializer using eql
       (defun worker-wait-for-join (channel)
         (loop until (with-pg-connection
                         (get-dao 'channel (connection-id connection) channel))
@@ -67,5 +68,5 @@
       (loop until (connection-connected-p connection)
             do (sleep 0.1))
       (&body)
-      (destroy-thread th))))
+      (irc:quit (connection-network-connection connection) "I've finished my test!"))))
 

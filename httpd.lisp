@@ -267,6 +267,18 @@
         (success-ok channel)
         (error-not-found "No such connection or channel"))))
 
+(defrouted channel-user-post-message (username server channel)
+    POST "/user/:username/connection/:server/channel/:channel/message"
+    (user username)
+  (let ((connection (car (select-dao 'connection
+                             (:and (:= 'username username)
+                                   (:= 'server server))))))
+    (if connection
+        (progn
+          (rpc-send connection 'irc:privmsg channel (read-line (getf env :raw-body) ""))
+          (success-accepted (format nil "Sending message to channel ~a" channel)))
+        (error-not-found "No such connection"))))
+
 ;; TODO paginate?
 ;; TODO ?from=<timestamp>
 (defrouted channel-list-event (username server channel)
@@ -295,8 +307,6 @@
 ;; (GET "/user/:username/connection/:server/user/:ircuser" #'ircuser-get) ; whois
 ;; (GET "/user/:username/connection/:server/user/:ircuser/event" #'ircuser-get-events) ; query log
 ;; (POST "/user/:username/connection/:server/user/:ircuser/event" #'ircuser-put-event) ; privmsg
-
-;; (POST "/user/:username/connection/:server/channel/:channel/message" #'channel-send-message) ; privmsg
 
 ;; (GET "/user/:username/connection/:server/channel/:channel/users" #'channel-list-users) ; whois list
 ;; (GET "/user/:username/connection/:server/channel/:channel/users/:ircuser" #'channel-get-user) ; retrieve whois

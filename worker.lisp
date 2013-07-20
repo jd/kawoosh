@@ -293,11 +293,12 @@ If last is not nil, put the hook in the last run ones."
     (loop while t
           do (multiple-value-bind (channel payload pid)
                  (wait-for-notification *database*)
-               (let ((command (read-from-string payload)))
-                 (eval (cons (car command)
-                             ;; Insert the connection as first argument
-                             (cons (connection-network-connection connection)
-                                   (cdr command)))))))))
+               (when (irc:connectedp (connection-network-connection connection))
+                 (let ((command (read-from-string payload)))
+                   (eval (cons (car command)
+                               ;; Insert the connection as first argument
+                               (cons (connection-network-connection connection)
+                                     (cdr command))))))))))
 
 (defun pick-connection ()
   (with-pg-connection
