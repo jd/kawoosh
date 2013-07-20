@@ -10,7 +10,7 @@
 (load (merge-pathnames "quicklisp/setup.lisp"
                        (user-homedir-pathname)))
 (require 'kawoosh-test)
-(kawoosh.httpd:start :debug t :port 4242)
+(kawoosh.httpd:start :debug t :port kawoosh.test:*httpd-test-port*)
 (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
   (5am:explain! results)
   (terminate (if (eq (5am:results-status results ) t) 0 1)))

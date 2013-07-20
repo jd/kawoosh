@@ -6,7 +6,8 @@
         kawoosh.dao
         kawoosh.httpd
         postmodern)
-  (:export channel-keys
+  (:export *httpd-test-port*
+           channel-keys
            kawoosh.test
            request
            database
@@ -15,6 +16,8 @@
            worker-wait-for-part))
 
 (in-package :kawoosh.test)
+
+(defparameter *httpd-test-port* 4242)
 
 (defvar channel-keys
   '(:name :password :modes :names :topic :joined-at
@@ -31,7 +34,7 @@
                           (method :GET)
                           (content nil))
   (multiple-value-bind (body status-code headers uri stream must-close reason-phrase)
-      (http-request (concatenate 'string "http://localhost:4242" url)
+      (http-request (format nil "http://localhost:~a~a" *httpd-test-port* url)
                     :basic-authorization (list user password)
                     :want-stream t
                     :method method
