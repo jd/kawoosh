@@ -10,8 +10,10 @@
 (load (merge-pathnames "quicklisp/setup.lisp"
                        (user-homedir-pathname)))
 (require 'kawoosh-test)
+#+sbcl (sb-profile:profile "KAWOOSH.HTTPD" "KAWOOSH.DAO" "KAWOOSH.WORKER")
 (kawoosh.httpd:start :debug t :port kawoosh.test:*httpd-test-port*)
 (let ((results (5am:run 'kawoosh.test:kawoosh.test)))
   (5am:explain! results)
-  (terminate (if (eq (5am:results-status results ) t) 0 1)))
-(kawoosh.httpd:stop)
+  (kawoosh.httpd:stop)
+  #+sbcl (sb-profile:report)
+  (terminate (if (eq (5am:results-status results) t) 0 1)))
