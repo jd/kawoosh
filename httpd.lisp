@@ -127,7 +127,8 @@
       ;; `encode-json' wants to use `write-char' which doesn't exist for a
       ;; `chunga:chunked-io-stream'
       (write-sequence (string-to-octets (encode-json-to-string log)) stream)
-      (write-sequence (string-to-octets "\r\n") stream))))
+      ;; \r\n
+      (write-sequence #(13 10) stream))))
 
 ;; TODO ?from=<timestamp>
 (defrouted user-list-event (username)
