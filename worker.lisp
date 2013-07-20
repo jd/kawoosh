@@ -303,6 +303,7 @@ If last is not nil, put the hook in the last run ones."
 
 (defun start (&optional connection)
   (let ((connection (or connection (pick-connection))))
-    (make-thread (lambda () (rpc-start connection)))
+    (make-thread (lambda () (rpc-start connection))
+                 :name "Kawoosh worker RPC")
     (with-pg-connection
       (connection-run connection))))
