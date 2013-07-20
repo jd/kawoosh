@@ -153,6 +153,16 @@
         ,(lambda (stream) (user-send-events 'log-reply username stream)))
       (error-not-found "No such user.")))
 
+;; TODO ?from=<timestamp>
+(defrouted user-list-command (username)
+    GET "/user/:username/command"
+    (user username)
+  (if (get-dao 'user username)
+      `(200
+        (:content-type "application/json"
+         :transfer-encoding "chunked")
+        ,(lambda (stream) (user-send-events 'log-command username stream)))
+      (error-not-found "No such user.")))
 
 ;; TODO paginate?
 (defrouted server-list ()

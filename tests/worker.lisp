@@ -161,4 +161,16 @@
               (is (equal "Hey!" (cdr (assoc :payload event))))
               (is (equal "#test" (cdr (assoc :target event))))
               (is (equal "localhost" (cdr (assoc :connection event))))
+              (is (equal current-nickname (cdr (assoc :source event))))))
+          (with-fixture request ("/user/jd/command")
+            (let* ((lines (loop for line = (read-line stream nil 'eof)
+                                      until (eq line 'eof)
+                                      collect line))
+                   (event (decode-json-from-string
+                          ;; Decode last line
+                          (car (last lines)))))
+              (is (equal "PRIVMSG" (cdr (assoc :command event))))
+              (is (equal "Hey!" (cdr (assoc :payload event))))
+              (is (equal "#test" (cdr (assoc :target event))))
+              (is (equal "localhost" (cdr (assoc :connection event))))
               (is (equal current-nickname (cdr (assoc :source event)))))))))))
