@@ -131,6 +131,15 @@
       (write-sequence #(13 10) stream))))
 
 ;; TODO ?from=<timestamp>
+(defrouted user-get-event (username event-id)
+    GET "/user/:username/event/:event-id"
+    (user username)
+  (let ((event (get-log-entry-for-user username event-id)))
+    (if event
+        (success-ok event)
+        (error-not-found "No such event."))))
+
+;; TODO ?from=<timestamp>
 (defrouted user-list-event (username)
     GET "/user/:username/event"
     (user username)
