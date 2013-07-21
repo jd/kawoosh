@@ -200,11 +200,13 @@ STREAM (or to *JSON-OUTPUT*)."
 
 (defun drop-tables ()
   (with-pg-connection
+    (execute "SET client_min_messages = 'ERROR';")
     (dolist (table-name '(command reply error logs channels connection servers users))
       (execute (:drop-table :if-exists table-name)))))
 
 (defun create-tables ()
   (with-pg-connection
+    (execute "SET client_min_messages = 'ERROR';")
     (execute "CREATE TABLE users (
        name text NOT NULL PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
        password text,
@@ -271,7 +273,7 @@ END;
 $lower_name$
 LANGUAGE plpgsql;")
     (execute "CREATE TRIGGER lower_name BEFORE INSERT ON channels FOR EACH ROW EXECUTE PROCEDURE lower_name();")
-    (execute " CREATE OR REPLACE FUNCTION lower_address() RETURNS trigger AS $lower_address$
+    (execute "CREATE OR REPLACE FUNCTION lower_address() RETURNS trigger AS $lower_address$
 BEGIN
   NEW.address := lower(trim(NEW.address));
   RETURN NEW;
