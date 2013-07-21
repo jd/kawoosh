@@ -171,14 +171,12 @@ STREAM (or to *JSON-OUTPUT*)."
 (defun get-log-entry-for-user (username log-id)
   "Retrieve log entry with LOG-ID that belongs to USERNAME."
   (car
-   (query-dao 'log-entry
-              (:select '*
-               :from (dao-table-name (find-class 'log-entry))
-               :where (:and
-                       (:= 'id log-id)
-                       (:in 'connection
-                            (:select 'id :from 'connection
-                             :where (:= 'username username))))))))
+   (select-dao 'log-entry
+       (:and
+        (:= 'id log-id)
+        (:in 'connection
+             (:select 'id :from 'connection
+              :where (:= 'username username)))))))
 
 (defclass log-reply (log-entry)
   ()
