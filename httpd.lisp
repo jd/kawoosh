@@ -111,26 +111,48 @@
           (success-ok nil))
         (error-not-found "No such user"))))
 
-;; FIXME Add a `limit' parameter
-;; FIXME Add a `from-timestamp' parameter
-;; FIXME Add a `streaming' parameter
-(defun user-send-events (class username server stream)
+
+(defun write-log-entry (log stream)
+  "Write LOG to STREAM."
+  ;; `encode-json' wants to use `write-char' which doesn't exist for a
+  ;; `chunga:chunked-io-stream'
+  (write-sequence (string-to-octets (encode-json-to-string log)) stream)
+  ;; \r\n
+  (write-sequence #(13 10) stream))
+
+(defun user-send-events (class username server stream &key streaming)
   "Send new events of type CLASS for USERNAME and SERVER to STREAM."
-  (let* ((last-id 0)
-         (logs (with-pg-connection
-                   (select-dao class
-                       (:and
-                        (:> 'id last-id)
-                        (:in 'connection
-                             (:select 'id :from 'connection
-                              :where (:and (:= 'username username)
-                                           (:= 'server server)))))))))
-    (dolist (log logs)
-      ;; `encode-json' wants to use `write-char' which doesn't exist for a
-      ;; `chunga:chunked-io-stream'
-      (write-sequence (string-to-octets (encode-json-to-string log)) stream)
-      ;; \r\n
-      (write-sequence #(13 10) stream))))
+  (let ((log-writer (lambda (log)
+                      (write-log-entry log stream)))
+        max-id)
+    (with-pg-connection
+        (when streaming
+          ;; When streaming, starts by listening to avoid race conditions
+          (let ((connection
+                  (car (select-dao 'connection
+                           (:and (:= 'username username)
+                                 (:= 'server server))))))
+            (execute (format nil "LISTEN log_inserted_for_connection_~a;"
+                             (connection-id connection)))))
+      ;; Send all log entries
+      ;; FIXME Add a `limit' parameter
+      ;; FIXME Add a `from-timestamp' parameter
+      (let ((logs
+              (get-log-entries-for-user+server
+               username server :class class)))
+        (mapc log-writer logs)
+        (finish-output stream)
+        (when streaming
+          (setq max-id (log-id (car (last logs))))))
+      (when streaming
+        (loop while t
+              do (multiple-value-bind (channel payload pid)
+                     (cl-postgres:wait-for-notification *database*)
+                   (let ((logs (get-log-entries-for-user+server
+                                username server :class class :min-id max-id)))
+                     (mapc log-writer logs)
+                     (finish-output stream)
+                     (setq max-id (log-id (car (last logs)))))))))))
 
 (defrouted user-get-event (username event-id)
     GET "/user/:username/event/:event-id"
@@ -148,9 +170,12 @@
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events 'log-entry username server stream)))
+        ,(lambda (stream) (user-send-events
+                           'log-entry username server stream
+                           :streaming (query-parameter (make-request env) "streaming"))))
       (error-not-found "No such user.")))
 
+;; TODO Auto-generate from the `user-connection-list-event' model function
 ;; TODO ?from=<timestamp>
 (defrouted user-connection-list-command (username server)
     GET "/user/:username/connection/:server/command"
@@ -159,7 +184,9 @@
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events 'log-command username server stream)))
+        ,(lambda (stream) (user-send-events
+                           'log-command username server stream
+                           :streaming (query-parameter (make-request env) "streaming"))))
       (error-not-found "No such user.")))
 
 ;; TODO ?from=<timestamp>
@@ -170,7 +197,9 @@
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events 'log-reply username server stream)))
+        ,(lambda (stream) (user-send-events
+                           'log-reply username server stream
+                           :streaming (query-parameter (make-request env) "streaming"))))
       (error-not-found "No such user.")))
 
 ;; TODO ?from=<timestamp>

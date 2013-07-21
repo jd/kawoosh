@@ -10,6 +10,7 @@
            *dbpassword*
            *dbhost*
            get-log-entry-for-user
+           get-log-entries-for-user+server
            with-pg-connection
            user
            server
@@ -44,6 +45,7 @@
            channel-topic-time
            channel-creation-time
            user-has-access-p
+           log-id
            log-reply
            log-command
            log-error))
@@ -178,6 +180,20 @@ STREAM (or to *JSON-OUTPUT*)."
              (:select 'id :from 'connection
               :where (:= 'username username)))))))
 
+(defun get-log-entries-for-user+server (username server
+                                        &key
+                                          (min-id 0)
+                                          (class 'log-entry))
+  "Return log for USERNAME and SERVER created after MIN-ID."
+  (select-dao class
+      (:and
+       (:> 'id min-id)
+       (:in 'connection
+            (:select 'id :from 'connection
+             :where (:and (:= 'username username)
+                          (:= 'server server)))))
+      'id))
+
 (defclass log-reply (log-entry)
   ()
   (:metaclass dao-class)
@@ -279,4 +295,15 @@ END;
 $lower_address$
 LANGUAGE plpgsql;")
     (execute "CREATE TRIGGER lower_address BEFORE INSERT ON servers FOR EACH ROW EXECUTE PROCEDURE lower_address();")
+    (execute "CREATE OR REPLACE FUNCTION notify_on_insert() RETURNS trigger AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    PERFORM pg_notify('log_inserted_for_connection_' || NEW.connection, CAST(NEW.id AS text));
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;")
+    (execute "CREATE TRIGGER reply_notify_on_insert AFTER INSERT ON reply FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
+    (execute "CREATE TRIGGER error_notify_on_insert AFTER INSERT ON error FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
+    (execute "CREATE TRIGGER command_notify_on_insert AFTER INSERT ON command FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
     (execute "INSERT INTO users (name, password, admin) VALUES ('admin', 'admin', true);")))
