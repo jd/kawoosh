@@ -89,7 +89,7 @@
         (is (equal '((:status . "Not Found")
                      (:message . "No such connection or channel not joined"))
                    (decode-json stream))))
-      (with-fixture request ("/user/jd/connection/localhost/event")
+      (with-fixture request ("/user/jd/connection/localhost/command")
         (let* ((lines (loop for line = (read-line stream nil 'eof)
                             until (eq line 'eof)
                             collect line))
