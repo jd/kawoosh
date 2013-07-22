@@ -170,16 +170,13 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
 (defun get-log-entries-for-user+server (username server
                                         &key
-                                          (min-id 0)
                                           (class 'log-entry))
   "Return log for USERNAME and SERVER created after MIN-ID."
   (select-dao class
-      (:and
-       (:> 'id min-id)
-       (:in 'connection
-            (:select 'id :from 'connection
-             :where (:and (:= 'username username)
-                          (:= 'server server)))))
+      (:in 'connection
+           (:select 'id :from 'connection
+            :where (:and (:= 'username username)
+                         (:= 'server server))))
       'id))
 
 (defclass log-reply (log-entry)
@@ -286,7 +283,13 @@ LANGUAGE plpgsql;")
     (execute "CREATE OR REPLACE FUNCTION notify_on_insert() RETURNS trigger AS $$
 BEGIN
   IF (TG_OP = 'INSERT') THEN
-    PERFORM pg_notify('log_inserted_for_connection_' || NEW.connection, CAST(NEW.id AS text));
+    PERFORM pg_notify('log_inserted_for_connection_' || NEW.connection,
+                       '((id . ' || NEW.id || ')'
+                        '(time . \"' || NEW.time || '\")'
+                        '(source . \"' || NEW.source || '\")'
+                        '(command . \"' || NEW.command || '\")'
+                        '(target . \"' || NEW.target || '\")'
+                        '(payload . \"' || replace(NEW.payload, '\"\', '\\\"') || '\"))');
   END IF;
   RETURN NULL;
 END;

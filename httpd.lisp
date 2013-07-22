@@ -123,8 +123,7 @@
 (defun user-send-events (class username server stream &key streaming)
   "Send new events of type CLASS for USERNAME and SERVER to STREAM."
   (let ((log-writer (lambda (log)
-                      (write-log-entry log stream)))
-        max-id)
+                      (write-log-entry log stream))))
     (with-pg-connection
         (when streaming
           ;; When streaming, starts by listening to avoid race conditions
@@ -141,18 +140,13 @@
               (get-log-entries-for-user+server
                username server :class class)))
         (mapc log-writer logs)
-        (finish-output stream)
-        (when streaming
-          (setq max-id (log-id (car (last logs))))))
+        (finish-output stream))
       (when streaming
         (loop while t
               do (multiple-value-bind (channel payload pid)
                      (cl-postgres:wait-for-notification *database*)
-                   (let ((logs (get-log-entries-for-user+server
-                                username server :class class :min-id max-id)))
-                     (mapc log-writer logs)
-                     (finish-output stream)
-                     (setq max-id (log-id (car (last logs)))))))))))
+                   (funcall log-writer (read-from-string payload))
+                   (finish-output stream)))))))
 
 (defrouted user-get-event (username event-id)
     GET "/user/:username/event/:event-id"
