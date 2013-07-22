@@ -154,6 +154,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (:table-name logs)
   (:keys id))
 
+;; FIXME this should be dropped FFS
 (defmethod encode-json ((o log-entry)
                         &optional (stream *json-output*))
   "Write the JSON representation (Object) of the connection object O to
