@@ -332,26 +332,6 @@
           (success-accepted (format nil "Sending message to channel ~a" channel)))
         (error-not-found "No such connection"))))
 
-;; TODO paginate?
-;; TODO ?from=<timestamp>
-(defrouted channel-list-event (username server channel)
-    GET "/user/:username/connection/:server/channel/:channel/event"
-    (user username)
-  ;; FIXME use `user-send-events'!
-  (let ((logs (query-dao 'log-entry
-                         (:limit
-                          (:select 'time 'source 'command 'target 'payload
-                           :from (dao-table-name (find-class 'log-entry))
-                           :where (:and (:= 'connection
-                                            (:select 'id :from 'connection
-                                             :where (:and (:= 'username username)
-                                                          (:= 'server server))))
-                                        (:= 'target channel)))
-                          (or (query-parameter (make-request env) "limit")
-                              *limit-default*)))))
-    (if logs
-        (success-ok logs)
-        (error-not-found "No such connection or channel"))))
 
 ;; TODO likely missing:
 ;; (GET "/user/:username/connection/:server/event" #'connection-list-event) ; query log
