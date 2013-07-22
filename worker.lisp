@@ -196,15 +196,11 @@ If last is not nil, put the hook in the last run ones."
     (irc:nick (connection-network-connection connection)
                  (format nil "~a_" tried-nickname))))
 
-(defclass irc-connection (irc:connection)
-  nil)
-
 (defun connection-run (connection)
   "Connect to the connection."
   (let ((server (get-dao 'server (connection-server connection))))
     (setf (connection-network-connection connection)
           (irc:connect :server (format nil "~a" (server-address server))
-                       :connection-type 'irc-connection
                        :port (server-port server)
                        :nickname (connection-nickname connection)
                        :connection-security (if (server-ssl-p server) :ssl :none)
