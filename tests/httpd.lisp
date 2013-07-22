@@ -22,6 +22,12 @@
                            :expected-content-type "text/plain; charset=utf-8"
                            :expected-status-code 401))))
 
+(def-test page-not-found ()
+  (with-fixture database ()
+    (with-fixture request ("/thismaynotexist"
+                           :expected-content-type nil
+                           :expected-status-code 404))))
+
 (def-test httpd-server ()
   (with-fixture database ()
     (with-fixture request ("/user/user"

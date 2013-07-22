@@ -350,11 +350,12 @@
   "Define the Clack application for Kawoosh."
   (let ((request-method (getf env :request-method))
         (request-path (getf env :path-info)))
-    (loop for (url-rule . handler) in *routes*
-          do (multiple-value-bind (matched params)
-                 (match url-rule request-method request-path)
-               (when matched
-                 (return (call handler (append env (list :route.parameters params)))))))))
+    (or (loop for (url-rule . handler) in *routes*
+              do (multiple-value-bind (matched params)
+                     (match url-rule request-method request-path)
+                   (when matched
+                     (return (call handler (append env (list :route.parameters params)))))))
+        '(404 (:content-type nil) nil))))
 
 (defvar *httpd* nil
   "The running httpd handler.")
