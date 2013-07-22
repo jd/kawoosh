@@ -74,6 +74,7 @@
 (defvar *dao-json-filter*
   '((kawoosh.dao:user password admin)
     (kawoosh.dao:connection id)
+    (kawoosh.dao:log-entry connection)
     (kawoosh.dao:channel connection))
   "Fields to not export when dumping a DAO object to JSON.")
 
@@ -83,10 +84,13 @@
 O to STREAM (or to *JSON-OUTPUT*)."
   (with-object (stream)
     (json::map-slots (lambda (key value)
-                       (unless (member key (cdr (assoc (type-of o) *dao-json-filter*)))
+                       (unless (loop for (class . slots) in *dao-json-filter*
+                                     if (and (subtypep (class-of o) class)
+                                             (member key slots))
+                                       return t)
                          (as-object-member (key stream)
                            (encode-json (if (eq value :null) nil value) stream))))
-                       o)))
+                     o)))
 
 (defclass user (dao-object)
   ((name :col-type string :initarg :name :accessor user-name)
@@ -153,23 +157,6 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (:metaclass dao-class)
   (:table-name logs)
   (:keys id))
-
-;; FIXME this should be dropped FFS
-(defmethod encode-json ((o log-entry)
-                        &optional (stream *json-output*))
-  "Write the JSON representation (Object) of the connection object O to
-STREAM (or to *JSON-OUTPUT*)."
-  (with-object (stream)
-    (json::map-slots (lambda (key value)
-                       (as-object-member (key stream)
-                         (encode-json
-                          (if (string= key 'connection)
-                              (connection-server
-                               (with-pg-connection
-                                   (get-dao 'connection value)))
-                              (if (eq value :null) nil value))
-                          stream)))
-                     o)))
 
 (defun get-log-entry-for-user (username log-id)
   "Retrieve log entry with LOG-ID that belongs to USERNAME."
