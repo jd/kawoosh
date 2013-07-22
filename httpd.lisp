@@ -179,8 +179,7 @@
         (:content-type "application/json"
          :transfer-encoding "chunked")
         ,(lambda (stream) (user-send-events
-                           'log-command username server stream
-                           :streaming (query-parameter (make-request env) "streaming"))))
+                           'log-command username server stream)))
       (error-not-found "No such user.")))
 
 ;; TODO ?from=<timestamp>
@@ -192,8 +191,7 @@
         (:content-type "application/json"
          :transfer-encoding "chunked")
         ,(lambda (stream) (user-send-events
-                           'log-reply username server stream
-                           :streaming (query-parameter (make-request env) "streaming"))))
+                           'log-reply username server stream)))
       (error-not-found "No such user.")))
 
 ;; TODO ?from=<timestamp>
@@ -204,7 +202,8 @@
       `(200
         (:content-type "application/json"
          :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events 'log-error username server stream)))
+        ,(lambda (stream) (user-send-events
+                           'log-error username server stream)))
       (error-not-found "No such user.")))
 
 ;; TODO paginate?
