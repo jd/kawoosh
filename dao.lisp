@@ -52,6 +52,15 @@
 
 (in-package :kawoosh.dao)
 
+
+(defparameter *sql-readtable* (cl-postgres:copy-sql-readtable cl-postgres:*sql-readtable*)
+  "Our SQL read table.
+Copied because we want to use local-time as timestamp reader.")
+
+;; Install local-time timestamp reader
+(let ((cl-postgres:*sql-readtable* *sql-readtable*))
+  (local-time:set-local-time-cl-postgres-readers))
+
 (defparameter *dbname* "kawoosh"
   "Database name.")
 
@@ -65,9 +74,24 @@
   "Databaser host.")
 
 (defmacro with-pg-connection (&rest body)
-  `(with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
-     (postmodern:execute "SET TIMEZONE='UTC'")
-     ,@body))
+  `(let ((cl-postgres:*sql-readtable* *sql-readtable*))
+     (with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
+       (postmodern:execute "SET TIMEZONE='UTC'")
+       ,@body)))
+
+(defmethod encode-json ((o local-time:timestamp)
+                        &optional (stream *json-output*))
+  "Write the JSON representation (Object) of the SIMPLE-DATE:TIMESTAMP object
+O to STREAM (or to *JSON-OUTPUT*)."
+  (encode-json
+   (with-output-to-string (s)
+     (local-time:format-timestring
+      s o
+      :format
+      '((:year 4) #\- (:month 2) #\- (:day 2) #\Space
+        (:hour 2) #\: (:min 2) #\: (:sec 2)))
+     s)
+   stream))
 
 (defclass dao-object () nil)
 

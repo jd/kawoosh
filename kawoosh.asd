@@ -5,6 +5,8 @@
                #:cl-irc
                #:cl+ssl
                #:flexi-streams
+               #:local-time
+               #:cl-postgres+local-time
                #:postmodern
                #:cl-postgres
                #:simple-date
