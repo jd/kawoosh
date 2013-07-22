@@ -76,7 +76,6 @@ Copied because we want to use local-time as timestamp reader.")
 (defmacro with-pg-connection (&rest body)
   `(let ((cl-postgres:*sql-readtable* *sql-readtable*))
      (with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
-       (postmodern:execute "SET TIMEZONE='UTC'")
        ,@body)))
 
 (defmethod encode-json ((o local-time:timestamp)
@@ -85,11 +84,7 @@ Copied because we want to use local-time as timestamp reader.")
 O to STREAM (or to *JSON-OUTPUT*)."
   (encode-json
    (with-output-to-string (s)
-     (local-time:format-timestring
-      s o
-      :format
-      '((:year 4) #\- (:month 2) #\- (:day 2) #\Space
-        (:hour 2) #\: (:min 2) #\: (:sec 2)))
+     (local-time:format-timestring s o)
      s)
    stream))
 
@@ -257,19 +252,19 @@ O to STREAM (or to *JSON-OUTPUT*)."
 	name varchar(50) NOT NULL CONSTRAINT rfc2812 CHECK (name ~ E'^[!#&+][^ ,\\x07\\x13\\x10]'),
         -- XXX update password when modes is updated for password
 	password text,
-        joined_at timestamp,
+        joined_at timestamp with time zone,
         names text[],
         modes text[],
         topic text,
         topic_who text,
-        topic_time timestamp,
-        creation_time timestamp,
+        topic_time timestamp with time zone,
+        creation_time timestamp with time zone,
 	PRIMARY KEY (connection, name)
 );")
     (execute "CREATE TABLE logs (
 	id serial PRIMARY KEY,
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
-	time timestamp NOT NULL DEFAULT CURRENT_DATE,
+	time timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	source text NOT NULL,
 	command text NOT NULL,
 	target text NOT NULL,
