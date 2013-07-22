@@ -333,7 +333,6 @@
 
 
 ;; TODO likely missing:
-;; (GET "/user/:username/connection/:server/event" #'connection-list-event) ; query log
 ;; (DELETE "/user/:username/connection/:server" #'connection-delete) ; disconnect (delete from connection)
 
 ;; (GET "/user/:username/connection/:server/user" #'ircuser-list)
