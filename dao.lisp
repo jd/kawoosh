@@ -9,15 +9,15 @@
            *dbuser*
            *dbpassword*
            *dbhost*
-           get-log-entry-for-user
-           get-log-entries-for-user+server
+           get-event-for-user
+           get-events-for-user+server
            with-pg-connection
            user
            server
            connection
            channel
-           log-connection
-           log-entry
+           event-connection
+           event
            id
            user-name
            user-password
@@ -45,10 +45,10 @@
            channel-topic-time
            channel-creation-time
            user-has-access-p
-           log-id
-           log-reply
-           log-command
-           log-error))
+           event-id
+           event-reply
+           event-sent
+           event-error))
 
 (in-package :kawoosh.dao)
 
@@ -93,7 +93,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
 (defvar *dao-json-filter*
   '((kawoosh.dao:user password admin)
     (kawoosh.dao:connection id)
-    (kawoosh.dao:log-entry connection)
+    (kawoosh.dao:event connection)
     (kawoosh.dao:channel connection))
   "Fields to not export when dumping a DAO object to JSON.")
 
@@ -165,33 +165,32 @@ O to STREAM (or to *JSON-OUTPUT*)."
   (:table-name channels)
   (:keys connection name))
 
-(defclass log-entry (dao-object)
-  ((id :col-type serial :reader log-id)
-   (connection :col-type serial :initarg :connection :accessor log-connection)
-   (time :col-type timestamp :initarg :time :accessor log-time)
-   (source :col-type text :initarg :source :access log-source)
-   (command :col-type text :initarg :command :access log-command)
-   (target :col-type text :initarg :target :access log-target)
-   (payload :col-type text :initarg :payload :access log-payload))
+(defclass event (dao-object)
+  ((id :col-type serial :reader event-id)
+   (connection :col-type serial :initarg :connection :accessor event-connection)
+   (time :col-type timestamp :initarg :time :accessor event-time)
+   (source :col-type text :initarg :source :access event-source)
+   (command :col-type text :initarg :command :access event-command)
+   (target :col-type text :initarg :target :access event-target)
+   (payload :col-type text :initarg :payload :access event-payload))
   (:metaclass dao-class)
-  (:table-name logs)
   (:keys id))
 
-(defun get-log-entry-for-user (username log-id)
-  "Retrieve log entry with LOG-ID that belongs to USERNAME."
+(defun get-event-for-user (username event-id)
+  "Retrieve event entry with EVENT-ID that belongs to USERNAME."
   (car
-   (select-dao 'log-entry
+   (select-dao 'event
        (:and
-        (:= 'id log-id)
+        (:= 'id event-id)
         (:in 'connection
              (:select 'id :from 'connection
               :where (:= 'username username)))))))
 
-(defun get-log-entries-for-user+server (username server
-                                        &key
-                                          (class 'log-entry)
-                                          from)
-  "Return log for USERNAME and SERVER created after MIN-ID."
+(defun get-events-for-user+server (username server
+                                   &key
+                                     (class 'event)
+                                     from)
+  "Return events for USERNAME and SERVER created after FROM timestamp."
   (select-dao class
       (:and
        (:>= 'time (or from "-infinity"))
@@ -201,28 +200,25 @@ O to STREAM (or to *JSON-OUTPUT*)."
                           (:= 'server server)))))
       'id))
 
-(defclass log-reply (log-entry)
+(defclass event-reply (event)
   ()
   (:metaclass dao-class)
-  (:table-name reply)
   (:keys id))
 
-(defclass log-command (log-entry)
+(defclass event-sent (event)
   ()
   (:metaclass dao-class)
-  (:table-name command)
   (:keys id))
 
-(defclass log-error (log-entry)
+(defclass event-error (event)
   ()
   (:metaclass dao-class)
-  (:table-name error)
   (:keys id))
 
 (defun drop-tables ()
   (with-pg-connection
     (execute "SET client_min_messages = 'ERROR';")
-    (dolist (table-name '(command reply error logs channels connection servers users))
+    (dolist (table-name '(event-sent event-reply event-error event channels connection servers users))
       (execute (:drop-table :if-exists table-name)))))
 
 (defun create-tables ()
@@ -264,7 +260,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
         creation_time timestamp with time zone,
 	PRIMARY KEY (connection, name)
 );")
-    (execute "CREATE TABLE logs (
+    (execute "CREATE TABLE event (
 	id serial PRIMARY KEY,
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE,
 	time timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -273,18 +269,18 @@ O to STREAM (or to *JSON-OUTPUT*)."
 	target text NOT NULL,
 	payload text
 );")
-    (execute "CREATE TABLE reply (
+    (execute "CREATE TABLE event_reply (
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
-) INHERITS (logs);")
-    (execute "ALTER TABLE reply ADD PRIMARY KEY (id);")
-    (execute "CREATE TABLE error (
+) INHERITS (event);")
+    (execute "ALTER TABLE event_reply ADD PRIMARY KEY (id);")
+    (execute "CREATE TABLE event_error (
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
-) INHERITS (logs);")
-    (execute "ALTER TABLE error ADD PRIMARY KEY (id);")
-    (execute "CREATE TABLE command (
+) INHERITS (event);")
+    (execute "ALTER TABLE event_error ADD PRIMARY KEY (id);")
+    (execute "CREATE TABLE event_sent (
 	connection serial NOT NULL REFERENCES connection(id) ON DELETE CASCADE
-) INHERITS (logs);")
-    (execute "ALTER TABLE command ADD PRIMARY KEY (id);")
+) INHERITS (event);")
+    (execute "ALTER TABLE event_sent ADD PRIMARY KEY (id);")
     ;; Lower and trim channels.name on insertion
     (execute "CREATE OR REPLACE FUNCTION lower_name() RETURNS trigger AS $lower_name$
 BEGIN
@@ -305,7 +301,7 @@ LANGUAGE plpgsql;")
     (execute "CREATE OR REPLACE FUNCTION notify_on_insert() RETURNS trigger AS $$
 BEGIN
   IF (TG_OP = 'INSERT') THEN
-    PERFORM pg_notify('log_inserted_for_connection_' || NEW.connection,
+    PERFORM pg_notify('event_inserted_for_connection_' || NEW.connection,
                        '((id . ' || NEW.id || ')'
                         '(time . \"' || NEW.time || '\")'
                         '(source . \"' || NEW.source || '\")'
@@ -316,7 +312,7 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;")
-    (execute "CREATE TRIGGER reply_notify_on_insert AFTER INSERT ON reply FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
-    (execute "CREATE TRIGGER error_notify_on_insert AFTER INSERT ON error FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
-    (execute "CREATE TRIGGER command_notify_on_insert AFTER INSERT ON command FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
+    (execute "CREATE TRIGGER event_reply_notify_on_insert AFTER INSERT ON event_reply FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
+    (execute "CREATE TRIGGER event_error_notify_on_insert AFTER INSERT ON event_error FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
+    (execute "CREATE TRIGGER event_sent_notify_on_insert AFTER INSERT ON event_sent FOR EACH ROW EXECUTE PROCEDURE notify_on_insert();")
     (execute "INSERT INTO users (name, password, admin) VALUES ('admin', 'admin', true);")))

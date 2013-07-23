@@ -89,16 +89,16 @@
         (is (equal '((:status . "Not Found")
                      (:message . "No such connection or channel not joined"))
                    (decode-json stream))))
-      (with-fixture request ("/user/jd/connection/localhost/command")
+      (with-fixture request ("/user/jd/connection/localhost/event")
         (let* ((lines (loop for line = (read-line stream nil 'eof)
                             until (eq line 'eof)
                             collect line))
                (event (decode-json-from-string
                        ;; Decode last line
                        (car (last lines)))))
-          (is (equal "JOIN" (cdr (assoc :command event))))
-          (is (equal "" (cdr (assoc :payload event))))
-          (is (equal "#test" (cdr (assoc :target event)))))))))
+          (is (equal "RPL_ENDOFNAMES" (cdr (assoc :command event))))
+          (is (equal "#test" (cdr (assoc :payload event))))
+          (is (equal "jd" (cdr (assoc :target event)))))))))
 
 (def-test privmsg-channel ()
   (with-fixture database ()
@@ -153,19 +153,7 @@
         (let ((current-nickname (cdr (assoc :current-nickname
                                             (decode-json-from-string
                                              (read-line stream nil))))))
-          (sleep 0.5)
           (with-fixture request ("/user/jd/connection/localhost/event")
-            (let* ((lines (loop for line = (read-line stream nil 'eof)
-                                      until (eq line 'eof)
-                                      collect line))
-                   (event (decode-json-from-string
-                          ;; Decode last line
-                          (car (last lines)))))
-              (is (equal "PRIVMSG" (cdr (assoc :command event))))
-              (is (equal "Hey!" (cdr (assoc :payload event))))
-              (is (equal "#test" (cdr (assoc :target event))))
-              (is (equal current-nickname (cdr (assoc :source event))))))
-          (with-fixture request ("/user/jd/connection/localhost/command")
             (let* ((lines (loop for line = (read-line stream nil 'eof)
                                       until (eq line 'eof)
                                       collect line))

@@ -141,10 +141,6 @@
               (let ((event-by-id (decode-json-from-string (read-line stream nil))))
                 (is (equal "RPL_HELLO" (cdr (assoc :command event-by-id))))
                 (is (equal "irc.localhost" (cdr (assoc :source event-by-id)))))))))
-      (with-fixture request ("/user/jd/connection/localhost/reply")
-        (let ((event (decode-json-from-string (read-line stream nil))))
-          (is (equal "RPL_HELLO" (cdr (assoc :command event))))
-          (is (equal "irc.localhost" (cdr (assoc :source event))))))
       (with-fixture request ("/user/jd/connection/localhost/event?from=foobar"
                              :expected-status-code 400)
         (let ((err (decode-json stream)))

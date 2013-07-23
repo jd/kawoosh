@@ -112,19 +112,19 @@
         (error-not-found "No such user"))))
 
 
-(defun write-log-entry (log stream)
-  "Write LOG to STREAM."
+(defun write-event (event stream)
+  "Write EVENT to STREAM."
   ;; `encode-json' wants to use `write-char' which doesn't exist for a
   ;; `chunga:chunked-io-stream'
-  (write-sequence (string-to-octets (encode-json-to-string log)) stream)
+  (write-sequence (string-to-octets (encode-json-to-string event)) stream)
   ;; \r\n
   (write-sequence #(13 10) stream))
 
 (defun user-send-events (class username server stream &key streaming
                                                         from)
   "Send new events of type CLASS for USERNAME and SERVER to STREAM."
-  (let ((log-writer (lambda (log)
-                      (write-log-entry log stream))))
+  (let ((event-writer (lambda (event)
+                        (write-event event stream))))
     (with-pg-connection
         (when streaming
           ;; When streaming, starts by listening to avoid race conditions
@@ -132,28 +132,27 @@
                   (car (select-dao 'connection
                            (:and (:= 'username username)
                                  (:= 'server server))))))
-            (execute (format nil "LISTEN log_inserted_for_connection_~a;"
+            (execute (format nil "LISTEN event_inserted_for_connection_~a;"
                              (connection-id connection)))))
-      ;; Send all log entries
+      ;; Send all events
       ;; FIXME Add a `limit' parameter
-      ;; FIXME Add a `from-timestamp' parameter
-      (let ((logs
-              (get-log-entries-for-user+server
+      (let ((events
+              (get-events-for-user+server
                username server :class class
                                :from from)))
-        (mapc log-writer logs)
+        (mapc event-writer events)
         (finish-output stream))
       (when streaming
         (loop while t
               do (multiple-value-bind (channel payload pid)
                      (cl-postgres:wait-for-notification *database*)
-                   (funcall log-writer (read-from-string payload))
+                   (funcall event-writer (read-from-string payload))
                    (finish-output stream)))))))
 
 (defrouted user-get-event (username event-id)
     GET "/user/:username/event/:event-id"
     (user username)
-  (let ((event (get-log-entry-for-user username event-id)))
+  (let ((event (get-event-for-user username event-id)))
     (if event
         (success-ok event)
         (error-not-found "No such event."))))
@@ -175,46 +174,9 @@
               (:content-type "application/json"
                :transfer-encoding "chunked")
               ,(lambda (stream) (user-send-events
-                                 'log-entry username server stream
+                                 'event username server stream
                                  :from from
                                  :streaming (query-parameter request "streaming")))))))
-      (error-not-found "No such user.")))
-
-;; TODO Auto-generate from the `user-connection-list-event' model function
-;; TODO ?from=<timestamp>
-(defrouted user-connection-list-command (username server)
-    GET "/user/:username/connection/:server/command"
-    (user username)
-  (if (get-dao 'user username)
-      `(200
-        (:content-type "application/json"
-         :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events
-                           'log-command username server stream)))
-      (error-not-found "No such user.")))
-
-;; TODO ?from=<timestamp>
-(defrouted user-connection-list-reply (username server)
-    GET "/user/:username/connection/:server/reply"
-    (user username)
-  (if (get-dao 'user username)
-      `(200
-        (:content-type "application/json"
-         :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events
-                           'log-reply username server stream)))
-      (error-not-found "No such user.")))
-
-;; TODO ?from=<timestamp>
-(defrouted user-connection-list-error (username server)
-    GET "/user/:username/connection/:server/error"
-    (user username)
-  (if (get-dao 'user username)
-      `(200
-        (:content-type "application/json"
-         :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events
-                           'log-error username server stream)))
       (error-not-found "No such user.")))
 
 ;; TODO paginate?

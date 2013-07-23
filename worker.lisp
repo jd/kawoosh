@@ -257,7 +257,7 @@ If last is not nil, put the hook in the last run ones."
     (call-next-method)
     (with-pg-connection
         (execute
-         "INSERT INTO command (connection, source, command, target, payload) VALUES ($1, $2, $3, $4, $5)"
+         "INSERT INTO event_sent (connection, source, command, target, payload) VALUES ($1, $2, $3, $4, $5)"
          (connection-id connection)
          (let ((user (irc:user irc-connection)))
            (if user
@@ -273,7 +273,7 @@ If last is not nil, put the hook in the last run ones."
         (execute
          (format
           nil
-          "INSERT INTO ~a (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
+          "INSERT INTO event_~a (connection, time, source, command, target, payload) VALUES ($1, $2, $3, $4, $5, $6)"
           (if (string= (irc:command message) "ERR" :end1 3)
               "error"
               "reply"))
