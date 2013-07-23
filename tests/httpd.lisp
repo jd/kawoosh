@@ -153,9 +153,8 @@
       ;; At that time it might make the test fail, but I'm sure I won't
       ;; care. Bender will fix it for me.
       (with-fixture request ("/user/jd/connection/localhost/event?from=3000-01-01")
-        (let ((events (decode-json stream)))
-          (is (equal nil events))))
-      (with-fixture request ("/user/nosuchuser/connection/localhost/event" :expected-status-code 404)))))
+        (is (equal 'eof (read-line stream nil 'eof)))))
+    (with-fixture request ("/user/nosuchuser/connection/localhost/event" :expected-status-code 404))))
 
 (def-test httpd-user-connection ()
   (with-fixture database ()
