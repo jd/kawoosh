@@ -7,8 +7,7 @@
                #:postmodern
                #:cl-json
                #:fiveam
-               #:drakma
-               #:flexi-streams)
+               #:drakma)
   :components
   ((:file "test"
     :pathname "tests/test")
