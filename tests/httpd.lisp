@@ -145,6 +145,16 @@
         (let ((event (decode-json-from-string (read-line stream nil))))
           (is (equal "RPL_HELLO" (cdr (assoc :command event))))
           (is (equal "irc.localhost" (cdr (assoc :source event))))))
+      (with-fixture request ("/user/jd/connection/localhost/event?from=foobar"
+                             :expected-status-code 400)
+        (let ((err (decode-json stream)))
+          (is (equal "Bad Request" (cdr (assoc :status err))))
+          (is (equal "Failed to parse \"foobar\" as an rfc3339 time: NIL" (cdr (assoc :message err))))))
+      ;; At that time it might make the test fail, but I'm sure I won't
+      ;; care. Bender will fix it for me.
+      (with-fixture request ("/user/jd/connection/localhost/event?from=3000-01-01")
+        (let ((events (decode-json stream)))
+          (is (equal nil events))))
       (with-fixture request ("/user/nosuchuser/connection/localhost/event" :expected-status-code 404)))))
 
 (def-test httpd-user-connection ()

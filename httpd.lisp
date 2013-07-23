@@ -120,7 +120,8 @@
   ;; \r\n
   (write-sequence #(13 10) stream))
 
-(defun user-send-events (class username server stream &key streaming)
+(defun user-send-events (class username server stream &key streaming
+                                                        from)
   "Send new events of type CLASS for USERNAME and SERVER to STREAM."
   (let ((log-writer (lambda (log)
                       (write-log-entry log stream))))
@@ -138,7 +139,8 @@
       ;; FIXME Add a `from-timestamp' parameter
       (let ((logs
               (get-log-entries-for-user+server
-               username server :class class)))
+               username server :class class
+                               :from from)))
         (mapc log-writer logs)
         (finish-output stream))
       (when streaming
@@ -156,17 +158,26 @@
         (success-ok event)
         (error-not-found "No such event."))))
 
-;; TODO ?from=<timestamp>
 (defrouted user-connection-list-event (username server)
     GET "/user/:username/connection/:server/event"
     (user username)
   (if (get-dao 'user username)
-      `(200
-        (:content-type "application/json"
-         :transfer-encoding "chunked")
-        ,(lambda (stream) (user-send-events
-                           'log-entry username server stream
-                           :streaming (query-parameter (make-request env) "streaming"))))
+      (let* ((request (make-request env))
+             (from (query-parameter request "from")))
+        (handler-case
+            (when from
+              (local-time:parse-timestring from))
+          (local-time::invalid-timestring (e)
+            ;; FIXME I'm sure we can avoid FORMAT here
+            (error-bad-request (format nil "~a" e)))
+          (:no-error (from)
+            `(200
+              (:content-type "application/json"
+               :transfer-encoding "chunked")
+              ,(lambda (stream) (user-send-events
+                                 'log-entry username server stream
+                                 :from from
+                                 :streaming (query-parameter request "streaming")))))))
       (error-not-found "No such user.")))
 
 ;; TODO Auto-generate from the `user-connection-list-event' model function

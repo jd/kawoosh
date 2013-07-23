@@ -189,13 +189,16 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
 (defun get-log-entries-for-user+server (username server
                                         &key
-                                          (class 'log-entry))
+                                          (class 'log-entry)
+                                          from)
   "Return log for USERNAME and SERVER created after MIN-ID."
   (select-dao class
-      (:in 'connection
-           (:select 'id :from 'connection
-            :where (:and (:= 'username username)
-                         (:= 'server server))))
+      (:and
+       (:>= 'time (or from "-infinity"))
+       (:in 'connection
+            (:select 'id :from 'connection
+             :where (:and (:= 'username username)
+                          (:= 'server server)))))
       'id))
 
 (defclass log-reply (log-entry)
