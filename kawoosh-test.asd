@@ -2,8 +2,6 @@
   :author "Julien Danjou <julien@danjou.info>"
   :description "IRC/HTTP gateway"
   :depends-on (#:kawoosh
-               #:clack
-               #:clack-app-route
                #:postmodern
                #:cl-json
                #:fiveam
