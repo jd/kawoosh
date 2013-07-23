@@ -3,7 +3,6 @@
   :description "IRC/HTTP gateway"
   :depends-on (#:kawoosh
                #:clack
-               #:clack-test
                #:clack-app-route
                #:postmodern
                #:cl-json
