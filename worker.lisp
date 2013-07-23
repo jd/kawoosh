@@ -101,10 +101,16 @@ If last is not nil, put the hook in the last run ones."
 
 (defun connection-handle-join (connection msg)
   (destructuring-bind (channel-name) (irc:arguments msg)
-    (if (irc:self-message-p msg)
-        (save-dao (make-instance 'channel :connection (connection-id connection) :name channel-name
-                                          :joined-at (irc-message-received-timestamp msg)))
-        (channel-update-names connection (get-dao 'channel (connection-id connection) channel-name)))))
+    (let ((channel (get-dao 'channel (connection-id connection) channel-name)))
+      (if (irc:self-message-p msg)
+          (if channel
+              (progn
+                (setf (channel-joined-at channel) (irc-message-received-timestamp msg))
+                (update-dao channel))
+              (make-dao 'channel :connection (connection-id connection)
+                                 :name channel-name
+                                 :joined-at (irc-message-received-timestamp msg)))
+          (channel-update-names connection channel)))))
 
 (defun connection-handle-part (connection msg)
   (destructuring-bind (channel-name &optional text) (irc:arguments msg)
