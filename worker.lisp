@@ -182,7 +182,7 @@ If last is not nil, put the hook in the last run ones."
 (defun connection-handle-rpl_creationtime (connection msg)
   (destructuring-bind (target channel-name time) (irc:arguments msg)
     (declare (ignore target))
-    (let ((channel (get-dao (connection-id connection) channel-name)))
+    (let ((channel (get-dao 'channel (connection-id connection) channel-name)))
       (when channel
         (setf (channel-creation-time channel)
               (unix-time->timestamp (parse-integer time)))
