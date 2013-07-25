@@ -12,8 +12,11 @@
 
 (defun irc-message-received-timestamp (msg)
   "Return the SQL timestamp for msg."
-  (simple-date:universal-time-to-timestamp
-   (irc:received-time msg)))
+  (local-time:format-timestring
+   nil
+   (local-time:universal-to-timestamp
+    (irc:received-time msg))
+   :timezone local-time:+utc-zone+))
 
 (defun irc-user-serialize (user)
   (format nil "~a!~a@~a"
@@ -166,9 +169,12 @@ If last is not nil, put the hook in the last run ones."
         (update-dao channel)))))
 
 (defun unix-time->timestamp (unix-time)
-  (simple-date:universal-time-to-timestamp
-   (local-time:timestamp-to-universal
-    (local-time:unix-to-timestamp unix-time))))
+  (local-time:format-timestring
+   nil
+   (local-time:universal-to-timestamp
+    (local-time:timestamp-to-universal
+     (local-time:unix-to-timestamp unix-time)))
+   :timezone local-time:+utc-zone+))
 
 (defun connection-handle-rpl_topicwhotime (connection msg)
   (destructuring-bind (target channel-name who time) (irc:arguments msg)
