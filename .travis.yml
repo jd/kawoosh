@@ -15,7 +15,7 @@ script:
   - "sbcl --eval '(load (merge-pathnames \"quicklisp/setup.lisp\" (user-homedir-pathname)))' --eval \"(require 'kawoosh)\" --eval '(kawoosh.dao:create-tables)' --quit"
   - pg_prove -v -hlocalhost -Ukawoosh tests/*.sql | tee /tmp/pgprove.log
   - "grep -q '^Result: PASS' /tmp/pgprove.log"
-  - sbcl --load run-tests.lisp
+  - sbcl --dynamic-space-size 2500 --load run-tests.lisp
 notifications:
   email:
     - julien@danjou.info
