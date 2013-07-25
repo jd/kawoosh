@@ -281,7 +281,7 @@ If last is not nil, put the hook in the last run ones."
          (irc-message-received-timestamp message)
          (irc:source message)
          (irc:command message)
-         (car (irc:arguments message))
+         (or (car (irc:arguments message)) :null)
          (or (cadr (irc:arguments message)) :null)))
     (call-next-method))
 
