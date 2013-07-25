@@ -301,13 +301,14 @@ LANGUAGE plpgsql;")
     (execute "CREATE OR REPLACE FUNCTION notify_on_insert() RETURNS trigger AS $$
 BEGIN
   IF (TG_OP = 'INSERT') THEN
+     -- No text must be NULL, otherwise notification sending will concatenate to NULL
     PERFORM pg_notify('event_inserted_for_connection_' || NEW.connection,
                        '((id . ' || NEW.id || ')'
                         '(time . \"' || NEW.time || '\")'
                         '(source . \"' || NEW.source || '\")'
                         '(command . \"' || NEW.command || '\")'
                         '(target . \"' || NEW.target || '\")'
-                        '(payload . \"' || replace(NEW.payload, '\"\', '\\\"') || '\"))');
+                        '(payload . \"' || replace(COALESCE(NEW.payload, ''), '\"\', '\\\"') || '\"))');
   END IF;
   RETURN NULL;
 END;
