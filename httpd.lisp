@@ -146,8 +146,14 @@
         (loop while t
               do (multiple-value-bind (channel payload pid)
                      (cl-postgres:wait-for-notification *database*)
-                   (funcall event-writer (read-from-string payload))
-                   (finish-output stream)))))))
+                   (handler-case
+                       (read-from-string payload)
+                     ;; Raised when the payload is empty or incomplete
+                     (end-of-file ())
+                     (:no-error (object position)
+                       (declare (ignore position))
+                       (funcall event-writer object)
+                       (finish-output stream)))))))))
 
 (defrouted user-get-event (username event-id)
     GET "/user/:username/event/:event-id"
