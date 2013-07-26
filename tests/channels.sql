@@ -3,7 +3,7 @@ SELECT plan(4);
 
 DELETE FROM users;
 
-INSERT INTO users (name) VALUES ('jd');
+INSERT INTO users (name, password) VALUES ('jd', 'lol');
 INSERT INTO servers (name, address) VALUES ('OFTC', 'irc.oftc.net');
 INSERT INTO servers (name, address) VALUES ('Freenode', 'irc.freenode.net');
 WITH conn_id AS (

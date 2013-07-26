@@ -5,7 +5,7 @@ DELETE FROM connection;
 DELETE FROM servers;
 DELETE FROM users;
 
-INSERT INTO users (name) VALUES ('jd');
+INSERT INTO users (name, password) VALUES ('jd', 'lol');
 INSERT INTO servers (name, address) VALUES ('OFTC', '  IRC.oftc.net');
 SELECT is(address, 'irc.oftc.net', 'Valid server address') FROM servers;
 SELECT ok(count(*) = 1, 'Valid server count') FROM servers;

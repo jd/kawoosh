@@ -5,7 +5,7 @@ DELETE FROM connection;
 DELETE FROM servers;
 DELETE FROM users;
 
-INSERT INTO users (name) VALUES ('jd');
+INSERT INTO users (name, password) VALUES ('jd', 'lol');
 INSERT INTO servers (name, address) VALUES ('OFTC', 'irc.oftc.net');
 WITH server_id AS (
      INSERT INTO connection (server, username, nickname, realname) VALUES ('OFTC', 'jd', 'jd__', 'Julien') RETURNING id

@@ -210,6 +210,12 @@
     (admin)
   ;; TODO Using YASON to decode object as a plist and then applying
   ;; make-instance with it might be simpler
+  ;; (let ((yason:*parse-json-booleans-as-symbols* t)
+  ;;       (yason:*parse-object-as* :plist)
+  ;;       (yason:*parse-object-key-fn* (lambda (x) (intern (string-upcase x) :keyword))))
+  ;;   (yason:parse "{\"a\": false}"))
+  ;; => (:A YASON:FALSE)
+  ;; Just need to find how to parse booleans as keywords
   (let* ((body (decode-json (getf env :raw-body)))
          (args (list :name name
                      :ssl (or (cdr (assoc :ssl body)) :false)

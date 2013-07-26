@@ -13,7 +13,8 @@
                #:clack
                #:clack-middleware-auth-basic
                #:cl-json
-               #:usocket)
+               #:usocket
+               #:yason)
   :components
   ((:file "dao")
    (:file "util")
