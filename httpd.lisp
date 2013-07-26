@@ -95,11 +95,17 @@
 (defrouted user-put (username)
     PUT "/user/:username"
     (user username)
-  (let* ((body (decode-json (getf env :raw-body)))
-         (user (make-dao 'user
-                         :name username
-                         :password (cdr (assoc :password body)))))
-    (success-ok user)))
+  (let ((body (decode-json (getf env :raw-body))))
+    (handler-case
+        (make-dao 'user
+                  :name username
+                  :password (cdr (assoc :password body)))
+      (cl-postgres-error:not-null-violation ()
+        (error-bad-request "Password cannot be empty"))
+      (cl-postgres-error:unique-violation ()
+        (error-bad-request "User already exists"))
+      (:no-error (user)
+        (success-ok user)))))
 
 (defrouted user-delete (username)
     DELETE "/user/:username"
@@ -202,9 +208,11 @@
 (defrouted server-put (name)
     PUT "/server/:name"
     (admin)
+  ;; TODO Using YASON to decode object as a plist and then applying
+  ;; make-instance with it might be simpler
   (let* ((body (decode-json (getf env :raw-body)))
          (args (list :name name
-                     :ssl (cdr (assoc :ssl body))
+                     :ssl (or (cdr (assoc :ssl body)) :false)
                      :address (cdr (assoc :address body))))
          (port (cdr (assoc :port body)))
          (server (apply #'make-instance 'server

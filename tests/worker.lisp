@@ -16,7 +16,8 @@
   (with-fixture database ()
     (with-fixture request ("/user/jd"
                            :method :PUT
-                           :content (encode-json-to-string '((:name . "jd"))))
+                           :content (encode-json-to-string '((:name . "jd")
+                                                             (:password . "f00bar"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("/server/localhost"
                            :method :PUT
@@ -104,7 +105,8 @@
   (with-fixture database ()
     (with-fixture request ("/user/jd"
                            :method :PUT
-                           :content (encode-json-to-string '((:name . "jd"))))
+                           :content (encode-json-to-string '((:name . "jd")
+                                                             (:password . "f00bar"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("/server/localhost"
                            :method :PUT

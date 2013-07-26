@@ -28,7 +28,7 @@
                            :expected-content-type nil
                            :expected-status-code 404))))
 
-(def-test httpd-server ()
+(def-test server-crud ()
   (with-fixture database ()
     (with-fixture request ("/user/user"
                            :method :PUT
@@ -68,12 +68,26 @@
       (is (equal '((:status . "Not Found") (:message . "No such server"))
                  (decode-json stream))))))
 
-(def-test httpd-user ()
+(def-test user-crud ()
   (with-fixture database ()
+    (with-fixture request ("/user/jd"
+                           :method :PUT
+                           :content "{}"
+                           :expected-status-code 400)
+      (let ((err (decode-json stream)))
+        (is (equal "Bad Request" (cdr (assoc :status err))))
+        (is (equal "Password cannot be empty" (cdr (assoc :message err))))))
     (with-fixture request ("/user/jd"
                            :method :PUT
                            :content (encode-json-to-string '((:password . "f00b4r"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
+    (with-fixture request ("/user/jd"
+                           :method :PUT
+                           :content (encode-json-to-string '((:password . "f00b4r")))
+                           :expected-status-code 400)
+      (let ((err (decode-json stream)))
+        (is (equal "Bad Request" (cdr (assoc :status err))))
+        (is (equal "User already exists" (cdr (assoc :message err))))))
     (with-fixture request ("/user")
       (is (equal '(((:name . "admin"))
                    ((:name . "jd")))
@@ -105,11 +119,12 @@
     (with-fixture request ("/user/foobar" :expected-status-code 404)
       (is (equal '((:status . "Not Found") (:message . "No such user")) (decode-json stream))))))
 
-(def-test httpd-user-events-retrieval ()
+(def-test user-events-retrieval ()
   (with-fixture database ()
     (with-fixture request ("/user/jd"
                            :method :PUT
-                           :content (encode-json-to-string '((:name . "jd"))))
+                           :content (encode-json-to-string '((:name . "jd")
+                                                             (:password . "f00b4r"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("/server/localhost"
                            :method :PUT
@@ -152,11 +167,12 @@
         (is (equal 'eof (read-line stream nil 'eof)))))
     (with-fixture request ("/user/nosuchuser/connection/localhost/event" :expected-status-code 404))))
 
-(def-test httpd-user-connection ()
+(def-test connection-crud ()
   (with-fixture database ()
     (with-fixture request ("/user/jd"
                            :method :PUT
-                           :content (encode-json-to-string '((:name . "jd"))))
+                           :content (encode-json-to-string '((:name . "jd")
+                                                             (:password . "f00b4r"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("/server/localhost"
                            :method :PUT

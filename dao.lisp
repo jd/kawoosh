@@ -52,6 +52,21 @@
 
 (in-package :kawoosh.dao)
 
+(defmethod s-sql:sql-escape ((arg symbol))
+  "Overrides the s-sql provided function so it handles correctly the :false
+keyword and get it converted to false."
+  (if (or (typep arg 'boolean) (eq arg :null) (eq arg :false))
+      (call-next-method)
+      (s-sql:to-sql-name arg)))
+
+(defmethod cl-postgres:to-sql-string ((arg (eql nil)))
+  "Overrides the cl-postgres provided function so it handles nil as NULL instead of false."
+  "NULL")
+
+(defmethod cl-postgres:to-sql-string ((arg (eql :false)))
+  "Overrides the cl-postgres provided function so it handles :false."
+  "false")
+
 
 (defparameter *sql-readtable* (cl-postgres:copy-sql-readtable cl-postgres:*sql-readtable*)
   "Our SQL read table.
@@ -78,6 +93,7 @@ Copied because we want to use local-time as timestamp reader.")
      (with-connection (list *dbname* *dbuser* *dbpassword* *dbhost*)
        ,@body)))
 
+;; TODO Move json method in kawoosh.json // json.lisp
 (defmethod encode-json ((o local-time:timestamp)
                         &optional (stream *json-output*))
   "Write the JSON representation (Object) of the SIMPLE-DATE:TIMESTAMP object
@@ -88,7 +104,22 @@ O to STREAM (or to *JSON-OUTPUT*)."
      s)
    stream))
 
+(defmethod encode-json ((o (eql :false))
+                        &optional (stream *json-output*))
+  (json::write-json-chars "false" stream))
+
+
 (defclass dao-object () nil)
+
+;; TODO Try to make this automagically defined on boolean slots!
+(defmacro dao-define-boolean-method (method-name class-name slot-name)
+  `(progn
+     (defmethod ,method-name ((object ,class-name))
+      (with-slots (,slot-name) object
+        (not (or (eq ,slot-name :false) (eq ,slot-name nil)))))
+
+     (defmethod (setf ,method-name) (value (object ,class-name))
+       (setf (slot-value object ',slot-name) (or value :false)))))
 
 (defvar *dao-json-filter*
   '((kawoosh.dao:user password admin)
@@ -132,10 +163,12 @@ O to STREAM (or to *JSON-OUTPUT*)."
   ((name :col-type string :initarg :name :accessor server-name)
    (address :col-type string :initarg :address :accessor server-address)
    (port :col-type integer :initarg :port :accessor server-port)
-   (ssl :col-type boolean :initarg :ssl :accessor server-ssl-p))
+   (ssl :col-type boolean :initarg :ssl))
   (:metaclass postmodern:dao-class)
   (:table-name servers)
   (:keys name))
+
+(dao-define-boolean-method server-ssl-p server ssl)
 
 (defclass connection (dao-object)
   ((id :col-type serial :reader connection-id)
@@ -144,11 +177,13 @@ O to STREAM (or to *JSON-OUTPUT*)."
    (nickname :col-type string :initarg :nickname :accessor connection-nickname)
    (current-nickname :col-type string :initarg :nickname :accessor connection-current-nickname)
    (realname :col-type string :initarg :nickname :accessor connection-realname)
-   (connected :col-type boolean :accessor connection-connected-p)
+   (connected :col-type boolean)
    (motd :col-type text :accessor connection-motd)
    (network-connection :initform nil :accessor connection-network-connection))
   (:metaclass postmodern:dao-class)
   (:keys id))
+
+(dao-define-boolean-method connection-connected-p connection connected)
 
 (defclass channel (dao-object)
   ((connection :col-type serial :initarg :connection :accessor channel-connection)
@@ -226,7 +261,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
     (execute "SET client_min_messages = 'ERROR';")
     (execute "CREATE TABLE users (
        name text NOT NULL PRIMARY KEY CHECK (name SIMILAR TO '[a-zA-Z0-9]+'),
-       password text,
+       password text NOT NULL,
        admin boolean NOT NULL DEFAULT FALSE
 );")
     (execute "CREATE TABLE servers (
