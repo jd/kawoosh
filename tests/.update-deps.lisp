@@ -8,4 +8,5 @@
 (ql:quickload 'drakma)
 (ql:quickload 'fiveam)
 (ql:quickload 'postmodern)
+(ql:quickload 'yason)
 (quit)

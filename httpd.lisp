@@ -208,25 +208,19 @@
 (defrouted server-put (name)
     PUT "/server/:name"
     (admin)
-  ;; TODO Using YASON to decode object as a plist and then applying
-  ;; make-instance with it might be simpler
-  ;; (let ((yason:*parse-json-booleans-as-symbols* t)
-  ;;       (yason:*parse-object-as* :plist)
-  ;;       (yason:*parse-object-key-fn* (lambda (x) (intern (string-upcase x) :keyword))))
-  ;;   (yason:parse "{\"a\": false}"))
-  ;; => (:A YASON:FALSE)
-  ;; Just need to find how to parse booleans as keywords
-  (let* ((body (decode-json (getf env :raw-body)))
-         (args (list :name name
-                     :ssl (or (cdr (assoc :ssl body)) :false)
-                     :address (cdr (assoc :address body))))
-         (port (cdr (assoc :port body)))
+  ;; TODO Move this to a common function in json.lisp
+  ;; and use it more often
+  (let* ((yason:*parse-json-booleans-as-symbols* t)
+         (yason:*parse-object-as* :plist)
+         (yason:*parse-object-key-fn* (lambda (x) (intern (string-upcase x) :keyword)))
          (server (apply #'make-instance 'server
-                        (if port (append args (list :port port)) args))))
+                        (append (yason:parse (getf env :raw-body))
+                                (list :name name)))))
     (handler-case
         (save-dao server)
       ;; TODO more detailed errors
-      (error () (error-bad-request "Invalid server details"))
+      ;; Typically don't catch error but the diffent possible condition type
+      (error (e) (error-bad-request "Invalid server details"))
       (:no-error (inserted) (success-ok server)))))
 
 ;; TODO paginate?

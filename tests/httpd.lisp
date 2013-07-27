@@ -36,6 +36,10 @@
       (is (equal '((:name . "user")) (decode-json stream))))
     (with-fixture request ("/server/localhost"
                            :method :PUT
+                           :content "{}"
+                           :expected-status-code 400))
+    (with-fixture request ("/server/localhost"
+                           :method :PUT
                            :content (encode-json-to-string '((:address . "localhost"))))
       (is (equal '((:name . "localhost")
                    (:address . "localhost")

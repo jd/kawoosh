@@ -67,6 +67,15 @@ keyword and get it converted to false."
   "Overrides the cl-postgres provided function so it handles :false."
   "false")
 
+(defmethod cl-postgres:to-sql-string ((arg (eql 'yason:true)))
+  "Overrides the cl-postgres provided function so it handles Yason true
+value."
+  "true")
+
+(defmethod cl-postgres:to-sql-string ((arg (eql 'yason:false)))
+  "Overrides the cl-postgres provided function so it handles Yason false value."
+  "false")
+
 
 (defparameter *sql-readtable* (cl-postgres:copy-sql-readtable cl-postgres:*sql-readtable*)
   "Our SQL read table.
