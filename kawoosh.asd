@@ -18,6 +18,7 @@
   :components
   ((:file "dao")
    (:file "util")
+   (:file "json")
    (:file "rpc" :depends-on ("dao"))
-   (:file "httpd" :depends-on ("dao" "rpc"))
+   (:file "httpd" :depends-on ("dao" "rpc" "json"))
    (:file "worker" :depends-on ("util" "dao"))))

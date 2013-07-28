@@ -2,6 +2,7 @@
   (:use cl
         kawoosh.dao
         kawoosh.rpc
+        kawoosh.json
         clack
         clack.builder
         clack.middleware.auth.basic
@@ -208,14 +209,9 @@
 (defrouted server-put (name)
     PUT "/server/:name"
     (admin)
-  ;; TODO Move this to a common function in json.lisp
-  ;; and use it more often
-  (let* ((yason:*parse-json-booleans-as-symbols* t)
-         (yason:*parse-object-as* :plist)
-         (yason:*parse-object-key-fn* (lambda (x) (intern (string-upcase x) :keyword)))
-         (server (apply #'make-instance 'server
-                        (append (yason:parse (getf env :raw-body))
-                                (list :name name)))))
+  (let ((server (apply #'make-instance 'server
+                       (append (decode-json-as-plist (getf env :raw-body))
+                               (list :name name)))))
     (handler-case
         (save-dao server)
       ;; TODO more detailed errors
