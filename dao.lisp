@@ -281,7 +281,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
 );")
     (execute "CREATE TABLE connection (
        id serial PRIMARY KEY,
-       server text REFERENCES servers(name),
+       server text NOT NULL REFERENCES servers(name),
        username text NOT NULL REFERENCES users(name) ON DELETE CASCADE,
        nickname text NOT NULL CHECK (nickname SIMILAR TO '[a-zA-Z][a-zA-Z0-9\\-_\\[\\]\\\\`{}]+'),
        current_nickname text,

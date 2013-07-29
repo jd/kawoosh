@@ -96,17 +96,18 @@
 (defrouted user-put (username)
     PUT "/user/:username"
     (user username)
-  (let ((body (decode-json (getf env :raw-body))))
-    (handler-case
-        (make-dao 'user
-                  :name username
-                  :password (cdr (assoc :password body)))
-      (cl-postgres-error:not-null-violation ()
-        (error-bad-request "Password cannot be empty"))
-      (cl-postgres-error:unique-violation ()
-        (error-bad-request "User already exists"))
-      (:no-error (user)
-        (success-ok user)))))
+  (handler-case
+      (upsert-dao
+       (apply #'make-instance 'user
+              (append (decode-json-as-plist (getf env :raw-body))
+                      (list :name username))))
+    (cl-postgres-error:not-null-violation ()
+      ;; FIXME this error msg shouldn't be hard coded
+      (error-bad-request "Password cannot be empty"))
+    (cl-postgres-error:unique-violation ()
+      (error-bad-request "User already exists"))
+    (:no-error (user inserted?)
+        (success-ok user))))
 
 (defrouted user-delete (username)
     DELETE "/user/:username"
@@ -209,15 +210,15 @@
 (defrouted server-put (name)
     PUT "/server/:name"
     (admin)
-  (let ((server (apply #'make-instance 'server
-                       (append (decode-json-as-plist (getf env :raw-body))
-                               (list :name name)))))
-    (handler-case
-        (save-dao server)
-      ;; TODO more detailed errors
-      ;; Typically don't catch error but the diffent possible condition type
-      (error (e) (error-bad-request "Invalid server details"))
-      (:no-error (inserted) (success-ok server)))))
+  (handler-case
+      (upsert-dao
+       (apply #'make-instance 'server
+              (append (decode-json-as-plist (getf env :raw-body))
+                      (list :name name))))
+    ;; TODO more detailed errors
+    ;; Typically don't catch error but the diffent possible condition type
+    (error (e) (error-bad-request "Invalid server details"))
+    (:no-error (server inserted?) (success-ok server))))
 
 ;; TODO paginate?
 (defrouted connection-list (username)
@@ -237,15 +238,15 @@
 (defrouted connection-put (username server)
     PUT "/user/:username/connection/:server"
     (user username)
-  (let* ((body (decode-json (getf env :raw-body)))
-         (nickname (cdr (assoc :nickname body)))
-         (connection (make-instance 'connection :username username
-                                                :nickname nickname
-                                                :server server)))
-    (handler-case
-        (save-dao connection)
-      (error () (error-bad-request "Invalid connection details"))
-      (:no-error (inserted) (success-ok connection)))))
+  (handler-case
+      (upsert-dao
+       (apply #'make-instance
+              'connection
+              (append (decode-json-as-plist (getf env :raw-body))
+                      (list :username username :server server))))
+    ;; FIXME try to be more verbose about the error
+    (error () (error-bad-request "Invalid connection details"))
+    (:no-error (connection inserted?) (success-ok connection))))
 
 ;; TODO paginate?
 (defrouted channel-list (username server)
