@@ -1,5 +1,5 @@
 (defpackage kawoosh.dao
-  (:use cl
+  (:use closer-common-lisp
         cl-json
         postmodern)
   (:export dao-object
@@ -48,7 +48,9 @@
            event-id
            event-reply
            event-sent
-           event-error))
+           event-error
+           save-dao-object
+           update-dao-bound-slots))
 
 (in-package :kawoosh.dao)
 
@@ -129,6 +131,36 @@ O to STREAM (or to *JSON-OUTPUT*)."
 
      (defmethod (setf ,method-name) (value (object ,class-name))
        (setf (slot-value object ',slot-name) (or value :false)))))
+
+(defgeneric update-dao-bound-slots (object)
+  (:documentation "Update OBJECT using only bound-slots.")
+  (:method ((object dao-object))
+    (let ((class (class-of object)))
+      ;; (postmodern::finalize-inheritance class)
+      (let ((slots (remove-if
+                    (lambda (slot)
+                      (or (member slot (dao-keys class))
+                          (not (slot-boundp object slot))))
+                    (mapcar #'slot-definition-name
+                            (remove-if
+                             #'postmodern::ghost
+                             (postmodern::dao-column-slots class))))))
+        (execute
+         (s-sql:sql-compile
+          `(:update ,(dao-table-name class)
+            :set ,@(loop :for slot :in slots
+                         :append (list slot (slot-value object slot)))
+            :where (:and
+                    ,@(loop :for field :in (dao-keys class)
+                            :collect (list := field (slot-value object field)))))))))))
+
+(defun save-dao-object (dao)
+  "Try to insert the content of a DAO. If this leads to a unique key
+violation, update it instead."
+  (handler-case (progn (insert-dao dao) (values dao t))
+    (cl-postgres-error:unique-violation ()
+      (update-dao-bound-slots dao)
+      (values dao nil))))
 
 (defvar *dao-json-filter*
   '((kawoosh.dao:user password admin)

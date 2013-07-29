@@ -85,13 +85,11 @@
                            :method :PUT
                            :content (encode-json-to-string '((:password . "f00b4r"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
+    ;; Change the password to the same password :)
     (with-fixture request ("/user/jd"
                            :method :PUT
-                           :content (encode-json-to-string '((:password . "f00b4r")))
-                           :expected-status-code 400)
-      (let ((err (decode-json stream)))
-        (is (equal "Bad Request" (cdr (assoc :status err))))
-        (is (equal "User already exists" (cdr (assoc :message err))))))
+                           :content (encode-json-to-string '((:password . "f00b4r"))))
+      (is (equal '((:name . "jd")) (decode-json stream))))
     (with-fixture request ("/user")
       (is (equal '(((:name . "admin"))
                    ((:name . "jd")))

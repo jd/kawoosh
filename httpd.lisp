@@ -97,7 +97,7 @@
     PUT "/user/:username"
     (user username)
   (handler-case
-      (upsert-dao
+      (save-dao-object
        (apply #'make-instance 'user
               (append (decode-json-as-plist (getf env :raw-body))
                       (list :name username))))
@@ -212,7 +212,7 @@
     PUT "/server/:name"
     (admin)
   (handler-case
-      (upsert-dao
+      (save-dao-object
        (apply #'make-instance 'server
               (append (decode-json-as-plist (getf env :raw-body))
                       (list :name name))))
@@ -240,7 +240,7 @@
     PUT "/user/:username/connection/:server"
     (user username)
   (handler-case
-      (upsert-dao
+      (save-dao-object
        (apply #'make-instance
               'connection
               (append (decode-json-as-plist (getf env :raw-body))

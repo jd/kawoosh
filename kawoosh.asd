@@ -4,6 +4,7 @@
   :depends-on (#:bordeaux-threads
                #:cl-irc
                #:cl+ssl
+               #:closer-mop
                #:flexi-streams
                #:local-time
                #:cl-postgres+local-time
