@@ -40,7 +40,18 @@
                            :expected-status-code 400))
     (with-fixture request ("/server/localhost"
                            :method :PUT
-                           :content (encode-json-to-string '((:address . "localhost"))))
+                           :content (encode-json-to-string '((:address . "localhost")
+                                                             (:ssl . t))))
+      (is (equal '((:name . "localhost")
+                   (:address . "localhost")
+                   (:port . 6667)
+                   (:ssl . t))
+                 (decode-json stream))))
+    ;; Check that updating works
+    (with-fixture request ("/server/localhost"
+                           :method :PUT
+                           :content (encode-json-to-string '((:address . "localhost")
+                                                             (:ssl . :false))))
       (is (equal '((:name . "localhost")
                    (:address . "localhost")
                    (:port . 6667)

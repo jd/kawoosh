@@ -57,7 +57,10 @@
 (defmethod s-sql:sql-escape ((arg symbol))
   "Overrides the s-sql provided function so it handles correctly the :false
 keyword and get it converted to false."
-  (if (or (typep arg 'boolean) (eq arg :null) (eq arg :false))
+  (if (or (typep arg 'boolean)
+          (eq arg :null) (eq arg :false)
+          (eq arg 'yason:false)
+          (eq arg 'yason:true))
       (call-next-method)
       (s-sql:to-sql-name arg)))
 
@@ -119,6 +122,14 @@ O to STREAM (or to *JSON-OUTPUT*)."
                         &optional (stream *json-output*))
   (json::write-json-chars "false" stream))
 
+(defmethod encode-json ((o (eql 'yason:false))
+                        &optional (stream *json-output*))
+  (json::write-json-chars "false" stream))
+
+(defmethod encode-json ((o (eql 'yason:true))
+                        &optional (stream *json-output*))
+  (json::write-json-chars "true" stream))
+
 
 (defclass dao-object () nil)
 
@@ -132,27 +143,36 @@ O to STREAM (or to *JSON-OUTPUT*)."
      (defmethod (setf ,method-name) (value (object ,class-name))
        (setf (slot-value object ',slot-name) (or value :false)))))
 
+;; TODO Propose to add that as a standard postmodern function
 (defgeneric update-dao-bound-slots (object)
   (:documentation "Update OBJECT using only bound-slots.")
   (:method ((object dao-object))
-    (let ((class (class-of object)))
-      ;; (postmodern::finalize-inheritance class)
-      (let ((slots (remove-if
-                    (lambda (slot)
-                      (or (member slot (dao-keys class))
-                          (not (slot-boundp object slot))))
-                    (mapcar #'slot-definition-name
-                            (remove-if
-                             #'postmodern::ghost
-                             (postmodern::dao-column-slots class))))))
-        (execute
-         (s-sql:sql-compile
-          `(:update ,(dao-table-name class)
-            :set ,@(loop :for slot :in slots
-                         :append (list slot (slot-value object slot)))
-            :where (:and
-                    ,@(loop :for field :in (dao-keys class)
-                            :collect (list := field (slot-value object field)))))))))))
+    (let ((class (class-of object))
+          bound unbound)
+      (loop :for slot :in
+                      (mapcar #'slot-definition-name
+                              (remove-if
+                               #'postmodern::ghost
+                               (postmodern::dao-column-slots class)))
+            :do (if (slot-boundp object slot)
+                    (push slot bound)
+                    (push slot unbound)))
+      (let ((returned
+              (query
+               (s-sql:sql-compile
+                `(:update ,(dao-table-name class)
+                  :set ,@(loop :for slot :in bound
+                               :append (list slot (slot-value object slot)))
+                  :where (:and
+                          ,@(loop :for field :in (dao-keys class)
+                                  :collect (list := field (slot-value object field))))
+                  ,@(when unbound (cons :returning unbound))))
+               :row)))
+        (when unbound
+          (loop :for value :in returned
+                :for slot :in unbound
+                :do (setf (slot-value object slot) value)))))
+    object))
 
 (defun save-dao-object (dao)
   "Try to insert the content of a DAO. If this leads to a unique key
