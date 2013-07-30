@@ -9,6 +9,9 @@
   :components
   ((:file "test"
     :pathname "tests/test")
+   (:file "json"
+    :pathname "tests/json"
+    :depends-on ("test"))
    (:file "httpd"
     :pathname "tests/httpd"
     :depends-on ("test"))

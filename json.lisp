@@ -1,6 +1,8 @@
 (defpackage kawoosh.json
   (:use cl)
-  (:export decode-json-as-plist))
+  (:export
+   decode-json-as-plist
+   decode-json-as-plist-only))
 
 (in-package :kawoosh.json)
 
@@ -15,4 +17,10 @@ Booleans are encoded as 'yason:true or 'yason:false."
         (yason:*parse-object-as* :plist)
         (yason:*parse-object-key-fn* #'intern-keyword))
     (yason:parse string)))
+
+(defun decode-json-as-plist-only (string fields)
+  "Decode on FIELDS in JSON STRING with DECODE-JSON-AS-PLIST."
+  (loop :for (key value) :on (decode-json-as-plist string) :by #'cddr
+        :when (member key fields)
+          :append (list key value)))
 
