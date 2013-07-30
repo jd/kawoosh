@@ -136,6 +136,7 @@
     (with-pg-connection
         (when streaming
           ;; When streaming, starts by listening to avoid race conditions
+          ;; FIXME BUG if no connection then connection is nil then it bugs
           (let ((connection
                   (car (select-dao 'connection
                            (:and (:= 'username username)
