@@ -47,6 +47,11 @@
                    (:port . 6667)
                    (:ssl . t))
                  (decode-json stream))))
+    ;; Empty update should not work
+    (with-fixture request ("/server/localhost"
+                           :method :PUT
+                           :content "{}"
+                           :expected-status-code 400))
     ;; Check that updating works
     (with-fixture request ("/server/localhost"
                            :method :PUT
@@ -96,6 +101,14 @@
                            :method :PUT
                            :content (encode-json-to-string '((:password . "f00b4r"))))
       (is (equal '((:name . "jd")) (decode-json stream))))
+    ;; Cannot update without the password
+    (with-fixture request ("/user/jd"
+                           :method :PUT
+                           :content "{}"
+                           :expected-status-code 400)
+      (let ((err (decode-json stream)))
+        (is (equal "Bad Request" (cdr (assoc :status err))))
+        (is (equal "Password cannot be empty" (cdr (assoc :message err))))))
     ;; Change the password to the same password :)
     (with-fixture request ("/user/jd"
                            :method :PUT
