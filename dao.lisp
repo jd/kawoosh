@@ -166,6 +166,10 @@ O to STREAM (or to *JSON-OUTPUT*)."
                   :where (:and
                           ,@(loop :for field :in (dao-keys class)
                                   :collect (list := field (slot-value object field))))
+                  ;; XXX Returning unbound is ok in most cases, but actually
+                  ;; what got inserted might be different that what was
+                  ;; bound in the slot because of triggers or the like;
+                  ;; returning everything might be safer
                   ,@(when unbound (cons :returning unbound))))
                :row)))
         (when unbound
