@@ -241,7 +241,7 @@ O to STREAM (or to *JSON-OUTPUT*)."
    (username :col-type string :initarg :username :accessor connection-username)
    (nickname :col-type string :initarg :nickname :accessor connection-nickname)
    (current-nickname :col-type string :initarg :nickname :accessor connection-current-nickname)
-   (realname :col-type string :initarg :nickname :accessor connection-realname)
+   (realname :col-type string :initarg :realname :accessor connection-realname)
    (connected :col-type boolean)
    (motd :col-type text :accessor connection-motd)
    (network-connection :initform nil :accessor connection-network-connection))
